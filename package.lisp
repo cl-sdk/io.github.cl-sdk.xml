@@ -1,5 +1,5 @@
 (defpackage #:cl-xml
-  (:use #:cl)
+  (:use #:cl #:trivial-gray-streams)
   (:export
    ;; Document
    #:xml-document

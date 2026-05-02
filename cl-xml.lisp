@@ -554,8 +554,8 @@ skipped.  Leaves STREAM positioned at the '<' of the root element."
 ;;; Public API
 
 (defun parse-xml (input &key (handler (make-instance 'dom-builder)))
-  "Parse INPUT (a string or character stream) as an XML document using a
-SAX-style event handler.
+  "Parse INPUT (a string, standard character stream, or trivial-gray-streams
+character stream) as an XML document using a SAX-style event handler.
 
 When called without a HANDLER keyword argument, uses the built-in DOM-BUILDER
 handler and returns an XML-DOCUMENT node (backward-compatible behaviour).
@@ -571,6 +571,7 @@ Entity references (&amp; &lt; &gt; &quot; &apos; &#N; &#xN;) are expanded
 before CHARACTERS and attribute values are reported."
   (let ((stream (etypecase input
                   (string (make-string-input-stream input))
+                  (fundamental-character-input-stream input)
                   (stream input))))
     (start-document handler)
     (parse-prolog-sax stream handler)

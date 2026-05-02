@@ -474,3 +474,30 @@
     (is (string= "tag" (cl-xml:xml-node-tag root)))
     (is (equal '(("attr" . "val")) (cl-xml:xml-node-attributes root)))
     (is (string= "text" (first (cl-xml:xml-node-children root))))))
+
+;;; ── trivial-gray-streams input ────────────────────────────────────────────
+
+;;; Minimal Gray stream that wraps a string-input-stream.
+(defclass test-gray-stream (fundamental-character-input-stream)
+  ((inner :initarg :inner :reader inner-stream)))
+
+(defmethod stream-read-char ((s test-gray-stream))
+  (read-char (inner-stream s) nil :eof))
+
+(defmethod stream-unread-char ((s test-gray-stream) ch)
+  (unread-char ch (inner-stream s)))
+
+(defmethod stream-peek-char ((s test-gray-stream))
+  (let ((ch (read-char (inner-stream s) nil :eof)))
+    (unless (eq ch :eof)
+      (unread-char ch (inner-stream s)))
+    ch))
+
+(test parse-xml-accepts-gray-stream
+  "parse-xml accepts a trivial-gray-streams fundamental-character-input-stream."
+  (let* ((inner  (make-string-input-stream "<el key=\"v\">hello</el>"))
+         (stream (make-instance 'test-gray-stream :inner inner))
+         (root   (cl-xml:xml-document-root (cl-xml:parse-xml stream))))
+    (is (string= "el" (cl-xml:xml-node-tag root)))
+    (is (equal '(("key" . "v")) (cl-xml:xml-node-attributes root)))
+    (is (string= "hello" (first (cl-xml:xml-node-children root))))))
