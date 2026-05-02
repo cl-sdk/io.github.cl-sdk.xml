@@ -26,10 +26,41 @@ xml-pi, xml-cdata, or a string (character data)."
 (defstruct xml-document
   "Represents a parsed XML document.
 PROLOG is a list of xml-comment and xml-pi nodes that precede the root element.
-DOCTYPE declarations are recognized but not included in PROLOG.
+DOCTYPE is an xml-doctype struct if a DOCTYPE declaration was present, or NIL.
 ROOT is the root xml-node."
   prolog
+  doctype
   root)
+
+(defstruct xml-dtd-element
+  "Represents a DTD <!ELEMENT> declaration.
+NAME is the element type name string.
+CONTENT-MODEL is the parsed content model:
+  :empty               — EMPTY keyword
+  :any                 — ANY keyword
+  (:mixed name*)       — mixed content (#PCDATA possibly with element names)
+  content-particle     — element content (see below)
+
+A content-particle is one of:
+  \"name\"              — element name, occurs exactly once
+  (:? content)         — content occurs 0 or 1 times (optional)
+  (:* content)         — content occurs 0 or more times
+  (:+ content)         — content occurs 1 or more times
+  (:seq  cp*)          — sequence of content particles, exactly once
+  (:choice cp*)        — choice among content particles, exactly once"
+  name
+  content-model)
+
+(defstruct xml-doctype
+  "Represents a parsed DOCTYPE declaration.
+NAME is the root element type name string.
+PUBLIC-ID is the public identifier string, or NIL.
+SYSTEM-ID is the system identifier string, or NIL.
+ELEMENTS is a list of xml-dtd-element structs parsed from the internal subset."
+  name
+  public-id
+  system-id
+  elements)
 
 (defstruct xml-qname
   "Represents a namespace-qualified XML name (Namespaces in XML 1.0 §2.1).
@@ -244,19 +275,275 @@ Returns an xml-pi node."
             (t
              (vector-push-extend ch buf))))))))
 
-;;; DOCTYPE skipping — XML 1.0 §2.8
+;;; DTD content-model parsing — XML 1.0 §3.2
 
-(defun skip-doctype (stream)
-  "Skip a DOCTYPE declaration.  STREAM must be just past '<!DOCTYPE'.
-Handles a nested internal subset enclosed in '[' … ']'."
-  (let ((depth 0))
-    (loop
-      (let ((ch (read-char stream nil nil)))
-        (unless ch (error "Unterminated DOCTYPE declaration"))
+(defun %parse-dtd-quoted-string (stream)
+  "Parse a quoted string (single- or double-quoted) for DOCTYPE external identifiers.
+Returns the string contents."
+  (let ((quote (read-char stream nil nil)))
+    (unless (member quote '(#\" #\') :test #'char=)
+      (error "Expected a quote character in DOCTYPE external identifier"))
+    (let ((buf (make-array 0 :element-type 'character :adjustable t :fill-pointer 0)))
+      (loop
+        (let ((ch (read-char stream nil nil)))
+          (unless ch (error "Unterminated external identifier in DOCTYPE"))
+          (if (char= ch quote)
+              (return (copy-seq buf))
+              (vector-push-extend ch buf)))))))
+
+(defun %skip-dtd-to-close-angle (stream)
+  "Skip characters until the first unquoted '>' is consumed.
+Used to skip DTD markup declarations that are not parsed (ATTLIST, ENTITY, etc.)."
+  (loop
+    (let ((ch (read-char stream nil nil)))
+      (unless ch (error "Unterminated markup declaration in DOCTYPE internal subset"))
+      (cond
+        ((char= ch #\>) (return))
+        ;; Skip over quoted strings so embedded '>' characters don't end the decl.
+        ((member ch '(#\" #\') :test #'char=)
+         (loop
+           (let ((qch (read-char stream nil nil)))
+             (unless qch (error "Unterminated quoted string in markup declaration"))
+             (when (char= qch ch) (return)))))))))
+
+(defun %parse-dtd-cp (stream)
+  "Parse a content particle (cp): a Name or a group, with an optional quantifier.
+Returns a string (Name), or (:? c), (:* c), (:+ c), (:seq cp*), or (:choice cp*)."
+  (skip-whitespace stream)
+  (let ((ch (peek-char nil stream nil nil)))
+    (when (null ch) (error "Unexpected end of input in DTD content particle"))
+    (let ((content (if (char= ch #\()
+                       (%parse-dtd-group stream)
+                       (parse-name stream))))
+      ;; Quantifier (no whitespace allowed between content and quantifier per spec)
+      (let ((q (peek-char nil stream nil nil)))
         (cond
-          ((char= ch #\[) (incf depth))
-          ((char= ch #\]) (decf depth))
-          ((and (= depth 0) (char= ch #\>)) (return)))))))
+          ((eql q #\?) (read-char stream) (list :? content))
+          ((eql q #\*) (read-char stream) (list :* content))
+          ((eql q #\+) (read-char stream) (list :+ content))
+          (t content))))))
+
+(defun %parse-dtd-mixed (stream)
+  "Parse mixed content model starting at '#' (opening '(' already consumed).
+Consumes '#PCDATA', optional '| Name' pairs, the closing ')', and optional '*'.
+Returns (:mixed name*)."
+  (loop for expected across "#PCDATA"
+        do (let ((c (read-char stream nil nil)))
+             (unless (and c (char= c expected))
+               (error "Expected #PCDATA in DTD mixed content model"))))
+  (skip-whitespace stream)
+  (let ((names '()))
+    (loop
+      (let ((ch (peek-char nil stream nil nil)))
+        (cond
+          ((null ch) (error "Unterminated DTD mixed content model"))
+          ((char= ch #\))
+           (read-char stream)                   ; consume ')'
+           (when (eql (peek-char nil stream nil nil) #\*)
+             (read-char stream))                ; consume optional '*'
+           (return (list* :mixed (nreverse names))))
+          ((char= ch #\|)
+           (read-char stream)                   ; consume '|'
+           (skip-whitespace stream)
+           (push (parse-name stream) names)
+           (skip-whitespace stream))
+          (t
+           (error "Expected ')' or '|' in DTD mixed content model, got '~c'" ch)))))))
+
+(defun %parse-dtd-seq-or-choice (stream)
+  "Parse a sequence or choice element-content group (opening '(' already consumed).
+Consumes content particles and the closing ')'.
+Returns (:seq cp*) or (:choice cp*)."
+  (let ((first-cp (%parse-dtd-cp stream)))
+    (skip-whitespace stream)
+    (let ((sep (peek-char nil stream nil nil)))
+      (cond
+        ((null sep) (error "Unexpected end of input in DTD content group"))
+        ;; Single cp wrapped in a group — treat as a one-element sequence.
+        ((char= sep #\))
+         (read-char stream)              ; consume ')'
+         (list :seq first-cp))
+        ;; Sequence: (cp , cp , ...)
+        ((char= sep #\,)
+         (let ((children (list first-cp)))
+           (loop while (progn (skip-whitespace stream)
+                              (eql (peek-char nil stream nil nil) #\,))
+                 do (read-char stream)   ; consume ','
+                 do (push (%parse-dtd-cp stream) children))
+           (skip-whitespace stream)
+           (unless (eql (peek-char nil stream nil nil) #\))
+             (error "Expected ')' at end of DTD sequence group"))
+           (read-char stream)
+           (cons :seq (nreverse children))))
+        ;; Choice: (cp | cp | ...)
+        ((char= sep #\|)
+         (let ((children (list first-cp)))
+           (loop while (progn (skip-whitespace stream)
+                              (eql (peek-char nil stream nil nil) #\|))
+                 do (read-char stream)   ; consume '|'
+                 do (push (%parse-dtd-cp stream) children))
+           (skip-whitespace stream)
+           (unless (eql (peek-char nil stream nil nil) #\))
+             (error "Expected ')' at end of DTD choice group"))
+           (read-char stream)
+           (cons :choice (nreverse children))))
+        (t
+         (error "Expected ',', '|', or ')' in DTD content group, got '~c'" sep))))))
+
+(defun %parse-dtd-group (stream)
+  "Parse a content group '(' body ')'.
+Consumes the opening '(' and closing ')'.
+Does NOT consume a trailing quantifier (except mixed content which absorbs its '*').
+Returns (:seq cp*), (:choice cp*), or (:mixed name*)."
+  (read-char stream)                    ; consume '('
+  (skip-whitespace stream)
+  (let ((next (peek-char nil stream nil nil)))
+    (cond
+      ((null next) (error "Unexpected end of input in DTD content group"))
+      ((char= next #\#) (%parse-dtd-mixed stream))
+      (t              (%parse-dtd-seq-or-choice stream)))))
+
+(defun parse-dtd-content-model (stream)
+  "Parse a DTD element content model specification from STREAM.
+Returns one of:
+  :empty               — EMPTY
+  :any                 — ANY
+  (:mixed name*)       — mixed content (#PCDATA possibly with element names)
+  content-particle     — element content group with optional top-level quantifier"
+  (skip-whitespace stream)
+  (let ((ch (peek-char nil stream nil nil)))
+    (cond
+      ((null ch) (error "Unexpected end of input in DTD content model"))
+      ((char= ch #\()
+       (let ((group (%parse-dtd-group stream)))
+         ;; Mixed content already absorbed its quantifier inside %parse-dtd-mixed.
+         ;; Element content groups may carry a top-level quantifier.
+         (if (and (consp group) (eq (car group) :mixed))
+             group
+             (let ((q (peek-char nil stream nil nil)))
+               (cond
+                 ((eql q #\?) (read-char stream) (list :? group))
+                 ((eql q #\*) (read-char stream) (list :* group))
+                 ((eql q #\+) (read-char stream) (list :+ group))
+                 (t group))))))
+      (t
+       (let ((kw (parse-name stream)))
+         (cond
+           ((string= kw "EMPTY") :empty)
+           ((string= kw "ANY")   :any)
+           (t (error "Expected EMPTY, ANY, or '(' in DTD content model, got '~a'" kw))))))))
+
+;;; DTD internal subset parsing
+
+(defun %parse-dtd-element-decl (stream)
+  "Parse a DTD ELEMENT declaration.
+STREAM must be positioned just after 'ELEMENT' (whitespace not yet consumed).
+Consumes through and including the closing '>'.
+Returns an xml-dtd-element struct."
+  (skip-whitespace stream)
+  (let ((name (parse-name stream)))
+    (skip-whitespace stream)
+    (let ((content-model (parse-dtd-content-model stream)))
+      (skip-whitespace stream)
+      (unless (eql (read-char stream nil nil) #\>)
+        (error "Expected '>' to close DTD ELEMENT declaration for '~a'" name))
+      (make-xml-dtd-element :name name :content-model content-model))))
+
+(defun %parse-dtd-internal-subset (stream)
+  "Parse the internal subset of a DOCTYPE declaration.
+STREAM is positioned just after '['.
+Consumes through and including the closing ']'.
+Returns a list of xml-dtd-element structs."
+  (let ((elements '()))
+    (loop
+      (skip-whitespace stream)
+      (let ((ch (peek-char nil stream nil nil)))
+        (unless ch (error "Unterminated DOCTYPE internal subset"))
+        (cond
+          ;; End of internal subset
+          ((char= ch #\])
+           (read-char stream)            ; consume ']'
+           (return (nreverse elements)))
+          ;; Markup declaration or comment starting with '<'
+          ((char= ch #\<)
+           (read-char stream)            ; consume '<'
+           (let ((next (peek-char nil stream nil nil)))
+             (unless next (error "Unexpected end of input in DOCTYPE internal subset"))
+             (cond
+               ;; Processing instruction: <? — parse and discard
+               ((char= next #\?)
+                (read-char stream)       ; consume '?'
+                (parse-pi stream))
+               ;; Markup declaration: <!ELEMENT, <!ATTLIST, <!ENTITY, <!NOTATION, <!--
+               ((char= next #\!)
+                (read-char stream)       ; consume '!'
+                (let ((after-bang (peek-char nil stream nil nil)))
+                  (cond
+                    ;; Comment: <!-- — parse and discard
+                    ((eql after-bang #\-)
+                     (read-char stream)  ; consume first '-'
+                     (unless (eql (peek-char nil stream nil nil) #\-)
+                       (error "Expected second '-' in comment in DOCTYPE internal subset"))
+                     (read-char stream)  ; consume second '-'
+                     (parse-comment stream))
+                    ;; Named declaration: ELEMENT, ATTLIST, ENTITY, NOTATION
+                    ((and after-bang (name-start-char-p after-bang))
+                     (let ((decl-type (parse-name stream)))
+                       (cond
+                         ((string= decl-type "ELEMENT")
+                          (push (%parse-dtd-element-decl stream) elements))
+                         ;; ATTLIST, ENTITY, NOTATION are skipped
+                         (t
+                          (%skip-dtd-to-close-angle stream)))))
+                    (t
+                     (error "Unexpected '<!~a' in DOCTYPE internal subset"
+                            (or after-bang ""))))))
+               (t
+                (error "Unexpected '<~c' in DOCTYPE internal subset" next)))))
+          (t
+           (error "Unexpected character '~c' in DOCTYPE internal subset" ch)))))))
+
+;;; DOCTYPE declaration parsing — XML 1.0 §2.8
+
+(defun parse-doctype (stream)
+  "Parse a DOCTYPE declaration.
+STREAM must be positioned just after '<!DOCTYPE' (whitespace not yet consumed).
+Consumes through and including the closing '>'.
+Returns an xml-doctype struct."
+  (skip-whitespace stream)
+  (let ((name (parse-name stream))
+        public-id system-id elements)
+    (skip-whitespace stream)
+    ;; Optional external identifier: SYSTEM or PUBLIC
+    (let ((ch (peek-char nil stream nil nil)))
+      (when (and ch (name-start-char-p ch))
+        (let ((keyword (parse-name stream)))
+          (cond
+            ((string= keyword "SYSTEM")
+             (skip-whitespace stream)
+             (setf system-id (%parse-dtd-quoted-string stream)))
+            ((string= keyword "PUBLIC")
+             (skip-whitespace stream)
+             (setf public-id (%parse-dtd-quoted-string stream))
+             (skip-whitespace stream)
+             ;; System identifier is optional after PUBLIC in external subsets
+             (when (member (peek-char nil stream nil nil) '(#\" #\') :test #'eql)
+               (setf system-id (%parse-dtd-quoted-string stream))))
+            (t
+             (error "Expected SYSTEM or PUBLIC in DOCTYPE declaration, got '~a'"
+                    keyword))))))
+    (skip-whitespace stream)
+    ;; Optional internal subset
+    (when (eql (peek-char nil stream nil nil) #\[)
+      (read-char stream)                ; consume '['
+      (setf elements (%parse-dtd-internal-subset stream)))
+    (skip-whitespace stream)
+    (unless (eql (read-char stream nil nil) #\>)
+      (error "Expected '>' to close DOCTYPE declaration"))
+    (make-xml-doctype :name      name
+                      :public-id public-id
+                      :system-id system-id
+                      :elements  elements)))
 
 ;;; Character data parsing — XML 1.0 §2.4
 
@@ -375,12 +662,22 @@ DATA is the raw content string (between <![CDATA[ and ]]>).")
     (declare (ignore data))
     nil))
 
+(defgeneric doctype-declaration (handler doctype)
+  (:documentation
+   "Called when a DOCTYPE declaration is parsed.
+DOCTYPE is an xml-doctype struct containing the parsed name, optional external
+identifiers, and a list of xml-dtd-element structs from the internal subset.")
+  (:method ((handler sax-handler) doctype)
+    (declare (ignore doctype))
+    nil))
+
 ;;; Default DOM-building SAX handler
 
 (defclass dom-builder (sax-handler)
-  ((%prolog :initform '())
-   (%stack  :initform '())
-   (%root   :initform nil))
+  ((%prolog  :initform '())
+   (%doctype :initform nil)
+   (%stack   :initform '())
+   (%root    :initform nil))
   (:documentation
    "SAX handler that builds an XML-DOCUMENT structure — the default behaviour
 of PARSE-XML when no custom handler is supplied.
@@ -423,9 +720,13 @@ Each stack frame is a list (tag attributes children-accumulator)."))
     (push (make-xml-cdata :data data)
           (third (first (slot-value handler '%stack))))))
 
+(defmethod doctype-declaration ((handler dom-builder) doctype)
+  (setf (slot-value handler '%doctype) doctype))
+
 (defmethod end-document ((handler dom-builder))
-  (make-xml-document :prolog (nreverse (slot-value handler '%prolog))
-                     :root   (slot-value handler '%root)))
+  (make-xml-document :prolog  (nreverse (slot-value handler '%prolog))
+                     :doctype (slot-value handler '%doctype)
+                     :root    (slot-value handler '%root)))
 
 ;;; SAX-based element parsing — XML 1.0 §3.1
 
@@ -554,7 +855,7 @@ skipped.  Leaves STREAM positioned at the '<' of the root element."
                     do (let ((c (read-char stream nil nil)))
                          (unless (and c (char= c expected))
                            (error "Invalid DOCTYPE declaration"))))
-              (skip-doctype stream))
+              (doctype-declaration handler (parse-doctype stream)))
              (t
               (error "Unexpected '<!~c' in prolog" after-bang)))))
         ;; Anything else is the root element: unread '<' and stop

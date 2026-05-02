@@ -662,3 +662,228 @@
     (is (= 1 (length children)))
     (is (string= "hello" (first children)))))
 
+;;; ── DTD element parsing ───────────────────────────────────────────────────
+
+;;; Helpers
+
+(defun parse-doctype-elements (str)
+  "Parse STR and return the list of xml-dtd-element structs from the DOCTYPE."
+  (cl-xml:xml-doctype-elements
+   (cl-xml:xml-document-doctype (cl-xml:parse-xml str))))
+
+;;; xml-dtd-element struct
+
+(test dtd-element-struct
+  "xml-dtd-element struct has name and content-model fields."
+  (let ((e (cl-xml:make-xml-dtd-element :name "root" :content-model :empty)))
+    (is (cl-xml:xml-dtd-element-p e))
+    (is (string= "root" (cl-xml:xml-dtd-element-name e)))
+    (is (eq :empty (cl-xml:xml-dtd-element-content-model e)))))
+
+;;; xml-doctype struct
+
+(test dtd-doctype-struct
+  "xml-doctype struct has name, public-id, system-id, and elements fields."
+  (let ((d (cl-xml:make-xml-doctype :name "root" :public-id nil
+                                    :system-id "root.dtd" :elements '())))
+    (is (cl-xml:xml-doctype-p d))
+    (is (string= "root" (cl-xml:xml-doctype-name d)))
+    (is (null (cl-xml:xml-doctype-public-id d)))
+    (is (string= "root.dtd" (cl-xml:xml-doctype-system-id d)))
+    (is (null (cl-xml:xml-doctype-elements d)))))
+
+;;; xml-document-doctype accessor
+
+(test no-doctype-gives-nil
+  "A document without a DOCTYPE has xml-document-doctype = NIL."
+  (let ((doc (cl-xml:parse-xml "<root />")))
+    (is (null (cl-xml:xml-document-doctype doc)))))
+
+(test doctype-present
+  "A document with a DOCTYPE has a non-nil xml-doctype in xml-document-doctype."
+  (let* ((doc (cl-xml:parse-xml "<!DOCTYPE root><root />"))
+         (dtd (cl-xml:xml-document-doctype doc)))
+    (is (cl-xml:xml-doctype-p dtd))
+    (is (string= "root" (cl-xml:xml-doctype-name dtd)))))
+
+(test doctype-no-external-id
+  "A DOCTYPE with no external identifier has nil public-id and system-id."
+  (let* ((dtd (cl-xml:xml-document-doctype
+               (cl-xml:parse-xml "<!DOCTYPE html><html />"))))
+    (is (null (cl-xml:xml-doctype-public-id dtd)))
+    (is (null (cl-xml:xml-doctype-system-id dtd)))))
+
+(test doctype-system-id
+  "A DOCTYPE with SYSTEM identifier records the system-id."
+  (let* ((dtd (cl-xml:xml-document-doctype
+               (cl-xml:parse-xml
+                "<!DOCTYPE root SYSTEM \"root.dtd\"><root />"))))
+    (is (null (cl-xml:xml-doctype-public-id dtd)))
+    (is (string= "root.dtd" (cl-xml:xml-doctype-system-id dtd)))))
+
+(test doctype-public-id
+  "A DOCTYPE with PUBLIC identifier records both public-id and system-id."
+  (let* ((dtd (cl-xml:xml-document-doctype
+               (cl-xml:parse-xml
+                "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0//EN\" \"xhtml1.dtd\"><html />"))))
+    (is (string= "-//W3C//DTD XHTML 1.0//EN" (cl-xml:xml-doctype-public-id dtd)))
+    (is (string= "xhtml1.dtd" (cl-xml:xml-doctype-system-id dtd)))))
+
+(test doctype-root-element-preserved
+  "The root element is still correctly parsed when a DOCTYPE is present."
+  (let ((doc (cl-xml:parse-xml "<!DOCTYPE root><root><child /></root>")))
+    (is (string= "root" (cl-xml:xml-node-tag (cl-xml:xml-document-root doc))))
+    (is (= 1 (length (cl-xml:xml-node-children
+                      (cl-xml:xml-document-root doc)))))))
+
+;;; DTD ELEMENT content models
+
+(test dtd-element-empty
+  "<!ELEMENT> with EMPTY content model is parsed as :empty."
+  (let ((elems (parse-doctype-elements
+                "<!DOCTYPE root [<!ELEMENT root EMPTY>]><root />")))
+    (is (= 1 (length elems)))
+    (let ((e (first elems)))
+      (is (string= "root" (cl-xml:xml-dtd-element-name e)))
+      (is (eq :empty (cl-xml:xml-dtd-element-content-model e))))))
+
+(test dtd-element-any
+  "<!ELEMENT> with ANY content model is parsed as :any."
+  (let ((elems (parse-doctype-elements
+                "<!DOCTYPE root [<!ELEMENT root ANY>]><root />")))
+    (is (= 1 (length elems)))
+    (is (eq :any (cl-xml:xml-dtd-element-content-model (first elems))))))
+
+(test dtd-element-pcdata-only
+  "<!ELEMENT> with (#PCDATA) is parsed as (:mixed)."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root (#PCDATA)>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (consp cm))
+    (is (eq :mixed (car cm)))
+    (is (null (cdr cm)))))
+
+(test dtd-element-mixed-content
+  "<!ELEMENT> with (#PCDATA|a|b)* is parsed as (:mixed \"a\" \"b\")."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root (#PCDATA|a|b)*>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (eq :mixed (car cm)))
+    (is (equal '("a" "b") (cdr cm)))))
+
+(test dtd-element-sequence
+  "<!ELEMENT> with (a, b, c) is parsed as (:seq \"a\" \"b\" \"c\")."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root (a, b, c)>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (equal '(:seq "a" "b" "c") cm))))
+
+(test dtd-element-choice
+  "<!ELEMENT> with (a|b) is parsed as (:choice \"a\" \"b\")."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root (a|b)>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (equal '(:choice "a" "b") cm))))
+
+(test dtd-element-sequence-plus
+  "<!ELEMENT> with (a, b)+ wraps the group with :+."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root (a, b)+>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (equal '(:+ (:seq "a" "b")) cm))))
+
+(test dtd-element-choice-star
+  "<!ELEMENT> with (a|b)* wraps the group with :*."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root (a|b)*>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (equal '(:* (:choice "a" "b")) cm))))
+
+(test dtd-element-sequence-opt
+  "<!ELEMENT> with (a, b)? wraps the group with :?."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root (a, b)?>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (equal '(:? (:seq "a" "b")) cm))))
+
+(test dtd-element-leaf-quantifier
+  "A leaf content particle with + quantifier is wrapped with :+."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root (a+)>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    ;; (a+) → single-element sequence containing (:+ "a")
+    (is (equal '(:seq (:+ "a")) cm))))
+
+(test dtd-element-nested-group
+  "<!ELEMENT> with ((a,b)|c) is parsed as a nested group."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root ((a,b)|c)>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (equal '(:choice (:seq "a" "b") "c") cm))))
+
+(test dtd-multiple-elements
+  "Multiple <!ELEMENT> declarations are all captured in order."
+  (let ((elems (parse-doctype-elements
+                (concatenate 'string
+                  "<!DOCTYPE root ["
+                  "<!ELEMENT root (a, b)>"
+                  "<!ELEMENT a (#PCDATA)>"
+                  "<!ELEMENT b EMPTY>"
+                  "]><root />"))))
+    (is (= 3 (length elems)))
+    (is (string= "root" (cl-xml:xml-dtd-element-name (first elems))))
+    (is (string= "a"    (cl-xml:xml-dtd-element-name (second elems))))
+    (is (string= "b"    (cl-xml:xml-dtd-element-name (third elems))))
+    (is (equal '(:seq "a" "b")
+               (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (eq :empty (cl-xml:xml-dtd-element-content-model (third elems))))))
+
+(test dtd-attlist-skipped
+  "<!ATTLIST> declarations in the internal subset are silently skipped."
+  (let ((elems (parse-doctype-elements
+                (concatenate 'string
+                  "<!DOCTYPE root ["
+                  "<!ELEMENT root EMPTY>"
+                  "<!ATTLIST root id ID #REQUIRED>"
+                  "]><root />"))))
+    (is (= 1 (length elems)))
+    (is (string= "root" (cl-xml:xml-dtd-element-name (first elems))))))
+
+(test dtd-comment-in-subset-skipped
+  "Comments inside the internal subset are silently skipped."
+  (let ((elems (parse-doctype-elements
+                (concatenate 'string
+                  "<!DOCTYPE root ["
+                  "<!-- declare the root -->"
+                  "<!ELEMENT root EMPTY>"
+                  "]><root />"))))
+    (is (= 1 (length elems)))
+    (is (string= "root" (cl-xml:xml-dtd-element-name (first elems))))))
+
+(test dtd-whitespace-in-content-model
+  "Whitespace around operators in a content model is handled correctly."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root ( a | b | c )>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (equal '(:choice "a" "b" "c") cm))))
+
+(test dtd-whitespace-sequence
+  "Whitespace around ',' in a sequence is handled correctly."
+  (let* ((elems (parse-doctype-elements
+                 "<!DOCTYPE root [<!ELEMENT root ( a , b , c )>]><root />"))
+         (cm (cl-xml:xml-dtd-element-content-model (first elems))))
+    (is (equal '(:seq "a" "b" "c") cm))))
+
+;;; SAX doctype-declaration event
+
+(test sax-doctype-declaration-event
+  "The doctype-declaration SAX event is fired with the parsed xml-doctype."
+  (let* ((handler (make-instance 'collecting-handler))
+         (result  (cl-xml:parse-xml
+                   "<!DOCTYPE root [<!ELEMENT root EMPTY>]><root />"
+                   :handler handler)))
+    ;; collecting-handler doesn't define doctype-declaration, so the default
+    ;; no-op is used; the event must not crash and the rest must parse.
+    (is (listp result))
+    (is (some (lambda (e) (equal '(:start-element "root" nil) e)) result))))
+

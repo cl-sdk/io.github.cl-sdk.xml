@@ -6,7 +6,22 @@
    #:xml-document-p
    #:make-xml-document
    #:xml-document-prolog
+   #:xml-document-doctype
    #:xml-document-root
+   ;; DTD element declaration
+   #:xml-dtd-element
+   #:xml-dtd-element-p
+   #:make-xml-dtd-element
+   #:xml-dtd-element-name
+   #:xml-dtd-element-content-model
+   ;; DOCTYPE declaration
+   #:xml-doctype
+   #:xml-doctype-p
+   #:make-xml-doctype
+   #:xml-doctype-name
+   #:xml-doctype-public-id
+   #:xml-doctype-system-id
+   #:xml-doctype-elements
    ;; Element
    #:xml-node
    #:xml-node-p
@@ -47,6 +62,7 @@
    #:comment
    #:processing-instruction
    #:cdata-section
+   #:doctype-declaration
    ;; Default DOM-building handler
    #:dom-builder
    ;; Entry points
