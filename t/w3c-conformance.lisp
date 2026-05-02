@@ -135,8 +135,8 @@ and REASON is a string explaining a failure or skip."
                      (format nil "Rejected valid document: ~a" err)))))
       ;; TYPE="not-wellformed" — parser MUST signal an error.
       ((string= type "not-wellformed")
-       (multiple-value-bind (status _err) (try-parse-xml-file path)
-         (declare (ignore _err))
+       (multiple-value-bind (status err) (try-parse-xml-file path)
+         (declare (ignore err))
          (if (eq status :error)
              (values :pass nil)
              (values :fail "Accepted a document that is not well-formed"))))

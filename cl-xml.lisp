@@ -771,7 +771,7 @@ An xmlns=\"\" declaration resets the default namespace to NIL (no namespace)."
 
 (defun normalize-xml-eol (string)
   "Normalize line endings in STRING per XML 1.0 §2.11.
-Translates CR LF and bare CR to a single LF character."
+Translates CR LF (#xD #xA) and bare CR (#xD) to a single LF (#xA) character."
   (let ((len (length string)))
     ;; Fast path: if no CR exists in the string, return it unchanged.
     (unless (find #\Return string)
@@ -783,10 +783,10 @@ Translates CR LF and bare CR to a single LF character."
           (let ((ch (char string i)))
             (cond
               ((char= ch #\Return)
-               (vector-push-extend #\Newline result)
+               (vector-push-extend #\Linefeed result)
                (incf i)
                ;; Skip the following LF if present (CRLF → LF)
-               (when (and (< i len) (char= (char string i) #\Newline))
+               (when (and (< i len) (char= (char string i) #\Linefeed))
                  (incf i)))
               (t
                (vector-push-extend ch result)
