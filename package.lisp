@@ -95,6 +95,32 @@
    #:doctype-declaration
    ;; Default DOM-building handler
    #:dom-builder
+   ;; XML event types (intermediate representation from parse-xml-events)
+   #:xml-event-start-element
+   #:xml-event-start-element-p
+   #:xml-event-start-element-tag
+   #:xml-event-start-element-attributes
+   #:xml-event-end-element
+   #:xml-event-end-element-p
+   #:xml-event-end-element-tag
+   #:xml-event-characters
+   #:xml-event-characters-p
+   #:xml-event-characters-text
+   #:xml-event-comment
+   #:xml-event-comment-p
+   #:xml-event-comment-data
+   #:xml-event-pi
+   #:xml-event-pi-p
+   #:xml-event-pi-target
+   #:xml-event-pi-data
+   #:xml-event-cdata
+   #:xml-event-cdata-p
+   #:xml-event-cdata-data
+   #:xml-event-doctype
+   #:xml-event-doctype-p
+   #:xml-event-doctype-doctype
    ;; Entry points
+   #:parse-xml-events
+   #:reduce-events
    #:parse-xml
    #:resolve-namespaces))

@@ -4,4 +4,11 @@
   :license "MIT"
   :depends-on ("trivial-gray-streams")
   :components ((:file "package")
-               (:file "cl-xml" :depends-on ("package"))))
+               (:file "structures"   :depends-on ("package"))
+               (:file "chars"        :depends-on ("package"))
+               (:file "tokeniser"    :depends-on ("chars" "structures"))
+               (:file "events"       :depends-on ("tokeniser" "structures"))
+               (:file "sax"          :depends-on ("package"))
+               (:file "dom-builder"  :depends-on ("sax" "structures" "chars"))
+               (:file "namespace"    :depends-on ("structures"))
+               (:file "api"          :depends-on ("events" "sax" "dom-builder"))))
