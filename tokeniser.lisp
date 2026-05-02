@@ -534,7 +534,7 @@ Returns an xml-doctype struct."
              (skip-whitespace stream)
              (setf public-id (%parse-dtd-quoted-string stream))
              (skip-whitespace stream)
-            ;; System identifier is optional after PUBLIC in DOCTYPE declarations.
+             ;; System identifier is optional after PUBLIC in DOCTYPE declarations.
              (when (member (peek-char nil stream nil nil) '(#\" #\'))
                (setf system-id (%parse-dtd-quoted-string stream))))
             (t

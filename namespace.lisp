@@ -124,7 +124,8 @@ An xmlns=\"\" declaration resets the default namespace to NIL (no namespace)."
   (let ((ns-bindings (list (cons "xml"   +xml-namespace-uri+)
                            (cons "xmlns" +xmlns-namespace-uri+))))
     (make-xml-document
-     :prolog (xml-document-prolog document)
-     :root   (%resolve-ns-node (xml-document-root document)
-                               ns-bindings
-                               nil))))
+     :prolog  (xml-document-prolog document)
+     :doctype (xml-document-doctype document)
+     :root    (%resolve-ns-node (xml-document-root document)
+                                ns-bindings
+                                nil))))
