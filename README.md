@@ -164,4 +164,4 @@ It targets the specifications listed below.
 
 ## License
 
-MIT
+Unlicense
