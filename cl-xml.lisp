@@ -445,16 +445,14 @@ Returns an xml-dtd-attlist struct."
           ((null ch)    (error "Unterminated DTD ATTLIST declaration"))
           ((eql ch #\>) (read-char stream) (return))   ; consume '>' and exit
           (t
-           (let* ((att-name    (parse-name stream))
-                  (dummy1      (skip-whitespace stream))
-                  (att-type    (%parse-dtd-att-type stream))
-                  (dummy2      (skip-whitespace stream))
-                  (att-default (%parse-dtd-att-default stream)))
-             (declare (ignore dummy1 dummy2))
-             (push (make-xml-dtd-att-def :name    att-name
-                                         :type    att-type
-                                         :default att-default)
-                   definitions))))))
+           (let ((att-name (parse-name stream)))
+             (skip-whitespace stream)
+             (let ((att-type (%parse-dtd-att-type stream)))
+               (skip-whitespace stream)
+               (push (make-xml-dtd-att-def :name    att-name
+                                           :type    att-type
+                                           :default (%parse-dtd-att-default stream))
+                     definitions)))))))
     (make-xml-dtd-attlist :element-name element-name
                           :definitions  (nreverse definitions))))
 
