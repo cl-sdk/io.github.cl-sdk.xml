@@ -269,12 +269,132 @@ Returns a cons (string . new-pos)."
            (incf pos)))))
     (cons (copy-seq buf) pos)))
 
-;;; Element parsing — XML 1.0 §3.1
+;;; SAX handler protocol — event-driven parsing interface
 
-(defun parse-element (str pos)
+(defclass sax-handler ()
+  ()
+  (:documentation
+   "Base class for SAX event handlers.
+Specialize the generic functions below to process the events you care about;
+default methods are no-ops (except END-DOCUMENT, which returns NIL)."))
+
+(defgeneric start-document (handler)
+  (:documentation "Called once before any other event.")
+  (:method ((handler sax-handler)) nil))
+
+(defgeneric end-document (handler)
+  (:documentation
+   "Called once after all events have been fired.
+The return value becomes the return value of PARSE-XML.")
+  (:method ((handler sax-handler)) nil))
+
+(defgeneric start-element (handler tag attributes)
+  (:documentation
+   "Called when an opening (or self-closing) tag is encountered.
+TAG is a string; ATTRIBUTES is an alist of (name . value) string pairs.")
+  (:method ((handler sax-handler) tag attributes)
+    (declare (ignore tag attributes))
+    nil))
+
+(defgeneric end-element (handler tag)
+  (:documentation
+   "Called when a closing (or self-closing) tag has been processed.
+TAG is a string.")
+  (:method ((handler sax-handler) tag)
+    (declare (ignore tag))
+    nil))
+
+(defgeneric characters (handler text)
+  (:documentation
+   "Called for a run of character data content.
+TEXT is a string with entity and character references already expanded.")
+  (:method ((handler sax-handler) text)
+    (declare (ignore text))
+    nil))
+
+(defgeneric comment (handler data)
+  (:documentation
+   "Called when a comment is encountered.
+DATA is the raw comment body (between <!-- and -->).")
+  (:method ((handler sax-handler) data)
+    (declare (ignore data))
+    nil))
+
+(defgeneric processing-instruction (handler target data)
+  (:documentation
+   "Called when a processing instruction is encountered.
+TARGET and DATA are both strings.")
+  (:method ((handler sax-handler) target data)
+    (declare (ignore target data))
+    nil))
+
+(defgeneric cdata-section (handler data)
+  (:documentation
+   "Called when a CDATA section is encountered.
+DATA is the raw content string (between <![CDATA[ and ]]>).")
+  (:method ((handler sax-handler) data)
+    (declare (ignore data))
+    nil))
+
+;;; Default DOM-building SAX handler
+
+(defclass dom-builder (sax-handler)
+  ((%prolog :initform '())
+   (%stack  :initform '())
+   (%root   :initform nil))
+  (:documentation
+   "SAX handler that builds an XML-DOCUMENT structure — the default behaviour
+of PARSE-XML when no custom handler is supplied.
+Each stack frame is a list (tag attributes children-accumulator)."))
+
+(defmethod start-element ((handler dom-builder) tag attributes)
+  (push (list tag attributes '()) (slot-value handler '%stack)))
+
+(defmethod end-element ((handler dom-builder) tag)
+  (declare (ignore tag))
+  (let* ((frame (pop (slot-value handler '%stack)))
+         (node  (make-xml-node :tag        (first frame)
+                               :attributes (second frame)
+                               :children   (nreverse (third frame)))))
+    (if (slot-value handler '%stack)
+        (push node (third (first (slot-value handler '%stack))))
+        (setf (slot-value handler '%root) node))))
+
+(defmethod characters ((handler dom-builder) text)
+  ;; Whitespace-only runs between elements are discarded, matching the
+  ;; original DOM parser behaviour.
+  (when (and (slot-value handler '%stack)
+             (not (every #'xml-whitespace-p text)))
+    (push text (third (first (slot-value handler '%stack))))))
+
+(defmethod comment ((handler dom-builder) data)
+  (let ((node (make-xml-comment :data data)))
+    (if (slot-value handler '%stack)
+        (push node (third (first (slot-value handler '%stack))))
+        (push node (slot-value handler '%prolog)))))
+
+(defmethod processing-instruction ((handler dom-builder) target data)
+  (let ((node (make-xml-pi :target target :data data)))
+    (if (slot-value handler '%stack)
+        (push node (third (first (slot-value handler '%stack))))
+        (push node (slot-value handler '%prolog)))))
+
+(defmethod cdata-section ((handler dom-builder) data)
+  (when (slot-value handler '%stack)
+    (push (make-xml-cdata :data data)
+          (third (first (slot-value handler '%stack))))))
+
+(defmethod end-document ((handler dom-builder))
+  (make-xml-document :prolog (nreverse (slot-value handler '%prolog))
+                     :root   (slot-value handler '%root)))
+
+;;; SAX-based element parsing — XML 1.0 §3.1
+
+(defun parse-element-sax (str pos handler)
   "Parse an XML element whose opening '<' has already been consumed.
 POS points to the first character of the tag name.
-Returns a cons (node . new-pos)."
+Fires START-ELEMENT, child events, and END-ELEMENT on HANDLER.
+Returns new-pos after the element."
   (destructuring-bind (tag . after-tag) (parse-name str pos)
     (destructuring-bind (attributes . after-attrs) (parse-attributes str after-tag)
       (let ((pos (skip-whitespace str after-attrs)))
@@ -283,147 +403,145 @@ Returns a cons (node . new-pos)."
           ((and (< (1+ pos) (length str))
                 (char= (char str pos) #\/)
                 (char= (char str (1+ pos)) #\>))
-           (cons (make-xml-node :tag tag :attributes attributes :children '())
-                 (+ pos 2)))
+           (start-element handler tag attributes)
+           (end-element handler tag)
+           (+ pos 2))
           ;; Opening tag: >  …content…  </tag>
           ((and (< pos (length str))
                 (char= (char str pos) #\>))
-           (multiple-value-bind (children end-pos)
-               (parse-children str (1+ pos) tag)
-             (cons (make-xml-node :tag tag :attributes attributes :children children)
-                   end-pos)))
+           (start-element handler tag attributes)
+           (let ((end-pos (parse-children-sax str (1+ pos) tag handler)))
+             (end-element handler tag)
+             end-pos))
           (t
            (error "Expected '>' or '/>' after attributes of '~a' at position ~a"
                   tag pos)))))))
 
-(defun parse-children (str pos parent-tag)
-  "Parse the content of an element until the matching closing tag.
-Each child node is preserved as its appropriate type:
-  - xml-node for child elements
-  - xml-comment for <!-- … --> comments
-  - xml-pi for <?target data?> processing instructions
-  - xml-cdata for <![CDATA[…]]> sections
-  - string for character data (whitespace-only runs are discarded)
-Returns two values: (children new-pos)."
-  (let ((children '()))
-    (loop
-      (when (>= pos (length str))
-        (error "Unexpected end of input while parsing children of <~a>" parent-tag))
-      (let ((ch (char str pos)))
-        (cond
-          ;; Character data (possibly containing entity references)
-          ((char/= ch #\<)
-           (destructuring-bind (text . new-pos) (parse-content-text str pos)
-             (unless (every #'xml-whitespace-p text)
-               (push text children))
-             (setf pos new-pos)))
-          ;; Markup starting with '<'
-          (t
-           (incf pos)                   ; consume '<'
-           (when (>= pos (length str))
-             (error "Unexpected end of input after '<'"))
-           (let ((next (char str pos)))
-             (cond
-               ;; Closing tag: </parent-tag>
-               ((char= next #\/)
-                (incf pos)              ; consume '/'
-                (destructuring-bind (tag . after-tag) (parse-name str pos)
-                  (unless (string= tag parent-tag)
-                    (error "Mismatched closing tag: expected </~a>, got </~a>"
-                           parent-tag tag))
-                  (let ((after-ws (skip-whitespace str after-tag)))
-                    (unless (and (< after-ws (length str))
-                                 (char= (char str after-ws) #\>))
-                      (error "Expected '>' to close </~a> at position ~a"
-                             tag after-ws))
-                    (return (values (nreverse children) (1+ after-ws))))))
-               ;; Nodes beginning with '<!'
-               ((char= next #\!)
-                (incf pos)              ; consume '!'
-                (cond
-                  ;; Comment: <!--
-                  ((and (< (1+ pos) (length str))
-                        (char= (char str pos) #\-)
-                        (char= (char str (1+ pos)) #\-))
-                   (destructuring-bind (comment-node . new-pos)
-                       (parse-comment str (+ pos 2))
-                     (push comment-node children)
-                     (setf pos new-pos)))
-                  ;; CDATA section: <![CDATA[
-                  ((and (<= (+ pos 7) (length str))
-                        (string= str "[CDATA[" :start1 pos :end1 (+ pos 7)))
-                   (let* ((cdata-start (+ pos 7))
-                          (end (search "]]>" str :start2 cdata-start)))
-                     (unless end
-                       (error "Unterminated CDATA section"))
-                     (push (make-xml-cdata :data (subseq str cdata-start end))
-                           children)
-                     (setf pos (+ end 3))))
-                  (t
-                   (error "Unexpected '<!' at position ~a" (- pos 2)))))
-               ;; Processing instruction: <?
-               ((char= next #\?)
-                (destructuring-bind (pi-node . new-pos)
-                    (parse-pi str (1+ pos))
-                  (push pi-node children)
-                  (setf pos new-pos)))
-               ;; Child element
-               (t
-                (destructuring-bind (child . new-pos) (parse-element str pos)
-                  (push child children)
-                  (setf pos new-pos)))))))))))
+(defun parse-children-sax (str pos parent-tag handler)
+  "Parse the content of an element, firing SAX events on HANDLER, until the
+matching closing tag is consumed.  Returns new-pos after the closing '>'."
+  (loop
+    (when (>= pos (length str))
+      (error "Unexpected end of input while parsing children of <~a>" parent-tag))
+    (let ((ch (char str pos)))
+      (cond
+        ;; Character data (possibly containing entity references)
+        ((char/= ch #\<)
+         (destructuring-bind (text . new-pos) (parse-content-text str pos)
+           (characters handler text)
+           (setf pos new-pos)))
+        ;; Markup starting with '<'
+        (t
+         (incf pos)                     ; consume '<'
+         (when (>= pos (length str))
+           (error "Unexpected end of input after '<'"))
+         (let ((next (char str pos)))
+           (cond
+             ;; Closing tag: </parent-tag>
+             ((char= next #\/)
+              (incf pos)                ; consume '/'
+              (destructuring-bind (tag . after-tag) (parse-name str pos)
+                (unless (string= tag parent-tag)
+                  (error "Mismatched closing tag: expected </~a>, got </~a>"
+                         parent-tag tag))
+                (let ((after-ws (skip-whitespace str after-tag)))
+                  (unless (and (< after-ws (length str))
+                               (char= (char str after-ws) #\>))
+                    (error "Expected '>' to close </~a> at position ~a"
+                           tag after-ws))
+                  (return (1+ after-ws)))))
+             ;; Nodes beginning with '<!'
+             ((char= next #\!)
+              (incf pos)                ; consume '!'
+              (cond
+                ;; Comment: <!--
+                ((and (< (1+ pos) (length str))
+                      (char= (char str pos) #\-)
+                      (char= (char str (1+ pos)) #\-))
+                 (destructuring-bind (comment-node . new-pos)
+                     (parse-comment str (+ pos 2))
+                   (comment handler (xml-comment-data comment-node))
+                   (setf pos new-pos)))
+                ;; CDATA section: <![CDATA[
+                ((and (<= (+ pos 7) (length str))
+                      (string= str "[CDATA[" :start1 pos :end1 (+ pos 7)))
+                 (let* ((cdata-start (+ pos 7))
+                        (end (search "]]>" str :start2 cdata-start)))
+                   (unless end
+                     (error "Unterminated CDATA section"))
+                   (cdata-section handler (subseq str cdata-start end))
+                   (setf pos (+ end 3))))
+                (t
+                 (error "Unexpected '<!' at position ~a" (- pos 2)))))
+             ;; Processing instruction: <?
+             ((char= next #\?)
+              (destructuring-bind (pi-node . new-pos)
+                  (parse-pi str (1+ pos))
+                (processing-instruction handler
+                                        (xml-pi-target pi-node)
+                                        (xml-pi-data pi-node))
+                (setf pos new-pos)))
+             ;; Child element
+             (t
+              (setf pos (parse-element-sax str pos handler))))))))))
 
-;;; Document prolog — XML 1.0 §2.8
+;;; SAX-based document prolog — XML 1.0 §2.8
 
-(defun parse-prolog (str pos)
-  "Parse the XML document prolog, collecting xml-comment and xml-pi nodes.
-DOCTYPE declarations are recognized and skipped (not included in the output).
-Returns two values: (prolog-nodes new-pos) where new-pos points to the '<'
-of the root element."
-  (let ((nodes '()))
-    (loop
-      (setf pos (skip-whitespace str pos))
-      (unless (and (< pos (length str)) (char= (char str pos) #\<))
-        (return))
-      (let ((peek (and (< (1+ pos) (length str)) (char str (1+ pos)))))
-        (cond
-          ;; Comment: <!--
-          ((and (eql peek #\!)
-                (< (+ pos 3) (length str))
-                (char= (char str (+ pos 2)) #\-)
-                (char= (char str (+ pos 3)) #\-))
-           (destructuring-bind (comment-node . new-pos)
-               (parse-comment str (+ pos 4))
-             (push comment-node nodes)
-             (setf pos new-pos)))
-          ;; Processing instruction (includes XML declaration): <?
-          ((eql peek #\?)
-           (destructuring-bind (pi-node . new-pos)
-               (parse-pi str (+ pos 2))
-             (push pi-node nodes)
-             (setf pos new-pos)))
-          ;; DOCTYPE: <!DOCTYPE
-          ((and (eql peek #\!)
-                (<= (+ pos 9) (length str))
-                (string= str "<!DOCTYPE" :start1 pos :end1 (+ pos 9)))
-           (setf pos (skip-doctype str (+ pos 9))))
-          ;; Anything else is the root element
-          (t (return)))))
-    (values (nreverse nodes) pos)))
+(defun parse-prolog-sax (str pos handler)
+  "Parse the XML document prolog, firing SAX events for comments and
+processing instructions on HANDLER.  DOCTYPE declarations are silently
+skipped.  Returns new-pos pointing to the '<' of the root element."
+  (loop
+    (setf pos (skip-whitespace str pos))
+    (unless (and (< pos (length str)) (char= (char str pos) #\<))
+      (return pos))
+    (let ((peek (and (< (1+ pos) (length str)) (char str (1+ pos)))))
+      (cond
+        ;; Comment: <!--
+        ((and (eql peek #\!)
+              (< (+ pos 3) (length str))
+              (char= (char str (+ pos 2)) #\-)
+              (char= (char str (+ pos 3)) #\-))
+         (destructuring-bind (comment-node . new-pos)
+             (parse-comment str (+ pos 4))
+           (comment handler (xml-comment-data comment-node))
+           (setf pos new-pos)))
+        ;; Processing instruction (includes XML declaration): <?
+        ((eql peek #\?)
+         (destructuring-bind (pi-node . new-pos)
+             (parse-pi str (+ pos 2))
+           (processing-instruction handler
+                                   (xml-pi-target pi-node)
+                                   (xml-pi-data pi-node))
+           (setf pos new-pos)))
+        ;; DOCTYPE: <!DOCTYPE
+        ((and (eql peek #\!)
+              (<= (+ pos 9) (length str))
+              (string= str "<!DOCTYPE" :start1 pos :end1 (+ pos 9)))
+         (setf pos (skip-doctype str (+ pos 9))))
+        ;; Anything else is the root element
+        (t (return pos))))))
 
 ;;; Public API
 
-(defun parse-xml (str)
-  "Parse STR as an XML document and return an xml-document node.
-The prolog field contains xml-comment and xml-pi nodes from before the root
-element; DOCTYPE declarations are skipped.
-The root field contains the root xml-node.
-Inside elements, comments become xml-comment nodes, processing instructions
-become xml-pi nodes, CDATA sections become xml-cdata nodes, and character
-data is returned as strings.
-Entity references (&amp; &lt; &gt; &quot; &apos; &#N; &#xN;) are expanded."
-  (multiple-value-bind (prolog-nodes pos) (parse-prolog str 0)
+(defun parse-xml (str &key (handler (make-instance 'dom-builder)))
+  "Parse STR as an XML document using a SAX-style event handler.
+
+When called without a HANDLER keyword argument, uses the built-in DOM-BUILDER
+handler and returns an XML-DOCUMENT node (backward-compatible behaviour).
+
+When a custom SAX-HANDLER subclass instance is supplied, the parser fires the
+following generic functions on it as it walks the input:
+  START-DOCUMENT, START-ELEMENT, END-ELEMENT, CHARACTERS, COMMENT,
+  PROCESSING-INSTRUCTION, CDATA-SECTION, END-DOCUMENT.
+The return value of END-DOCUMENT on the handler becomes the return value of
+PARSE-XML.
+
+Entity references (&amp; &lt; &gt; &quot; &apos; &#N; &#xN;) are expanded
+before CHARACTERS and attribute values are reported."
+  (start-document handler)
+  (let ((pos (parse-prolog-sax str 0 handler)))
     (unless (and (< pos (length str)) (char= (char str pos) #\<))
       (error "Expected root element at position ~a" pos))
-    (let ((result (parse-element str (1+ pos))))
-      (make-xml-document :prolog prolog-nodes :root (car result)))))
+    (parse-element-sax str (1+ pos) handler))
+  (end-document handler))

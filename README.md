@@ -12,7 +12,13 @@ A Common Lisp XML reader, writer, and custom parser.
 
 ## Parsing
 
-`parse-xml` accepts a string and returns an `xml-document`.
+`parse-xml` accepts a string and an optional `:handler` keyword argument.
+
+* **Default behaviour** — when no handler is given, `parse-xml` returns an
+  `xml-document` built by the built-in `dom-builder` handler (fully
+  backward-compatible).
+* **SAX behaviour** — when a custom handler is supplied, the parser fires
+  events on it and returns whatever `end-document` returns.
 
 ```lisp
 (defvar *doc*
@@ -24,6 +30,46 @@ A Common Lisp XML reader, writer, and custom parser.
   <![CDATA[literal <text>]]>
   <?app instruction?>
 </root>"))
+```
+
+### SAX parsing
+
+Provide a subclass of `sax-handler` and pass an instance as `:handler` to
+`parse-xml`.  Specialize only the event methods you care about; unspecialized
+methods are no-ops.
+
+```lisp
+(defclass my-handler (cl-xml:sax-handler) ())
+
+(defmethod cl-xml:start-element ((h my-handler) tag attributes)
+  (format t "open  ~a ~a~%" tag attributes))
+
+(defmethod cl-xml:end-element ((h my-handler) tag)
+  (format t "close ~a~%" tag))
+
+(defmethod cl-xml:end-document ((h my-handler))
+  :done)
+
+(cl-xml:parse-xml "<root><child /></root>" :handler (make-instance 'my-handler))
+;; open  root nil
+;; open  child nil
+;; close child
+;; close root
+;; => :done
+```
+
+#### SAX handler generic functions
+
+| Generic function | When called |
+|---|---|
+| `(start-document handler)` | once, before any other event |
+| `(end-document handler)` | once, after all events; return value is `parse-xml`'s result |
+| `(start-element handler tag attributes)` | opening / self-closing tag |
+| `(end-element handler tag)` | closing / self-closing tag |
+| `(characters handler text)` | character data (entity refs already expanded) |
+| `(comment handler data)` | `<!-- … -->` comment |
+| `(processing-instruction handler target data)` | `<?target data?>` PI |
+| `(cdata-section handler data)` | `<![CDATA[…]]>` section |
 ```
 
 ### xml-document

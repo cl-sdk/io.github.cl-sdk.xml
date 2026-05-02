@@ -30,5 +30,17 @@
    #:xml-cdata-p
    #:make-xml-cdata
    #:xml-cdata-data
+   ;; SAX handler protocol
+   #:sax-handler
+   #:start-document
+   #:end-document
+   #:start-element
+   #:end-element
+   #:characters
+   #:comment
+   #:processing-instruction
+   #:cdata-section
+   ;; Default DOM-building handler
+   #:dom-builder
    ;; Entry point
    #:parse-xml))

@@ -314,6 +314,141 @@
                  (cl-xml:xml-pi-target (first (cl-xml:xml-document-prolog doc)))))
     (is (string= "root" (cl-xml:xml-node-tag (cl-xml:xml-document-root doc))))))
 
+;;; ── SAX handler — collecting helper ─────────────────────────────────────
+
+(defclass collecting-handler (cl-xml:sax-handler)
+  ((events :initform '() :accessor handler-events))
+  (:documentation "SAX handler that accumulates all events into a list."))
+
+(defmethod cl-xml:start-element ((h collecting-handler) tag attributes)
+  (push (list :start-element tag attributes) (handler-events h)))
+
+(defmethod cl-xml:end-element ((h collecting-handler) tag)
+  (push (list :end-element tag) (handler-events h)))
+
+(defmethod cl-xml:characters ((h collecting-handler) text)
+  (push (list :characters text) (handler-events h)))
+
+(defmethod cl-xml:comment ((h collecting-handler) data)
+  (push (list :comment data) (handler-events h)))
+
+(defmethod cl-xml:processing-instruction ((h collecting-handler) target data)
+  (push (list :pi target data) (handler-events h)))
+
+(defmethod cl-xml:cdata-section ((h collecting-handler) data)
+  (push (list :cdata data) (handler-events h)))
+
+(defmethod cl-xml:end-document ((h collecting-handler))
+  (nreverse (handler-events h)))
+
+(defun sax-events (str)
+  "Parse STR with a COLLECTING-HANDLER and return the event list."
+  (cl-xml:parse-xml str :handler (make-instance 'collecting-handler)))
+
+;;; ── SAX handler tests ─────────────────────────────────────────────────────
+
+(test sax-default-returns-document
+  "parse-xml without :handler returns an xml-document (backward compat)."
+  (let ((doc (cl-xml:parse-xml "<root />")))
+    (is (cl-xml:xml-document-p doc))
+    (is (string= "root" (cl-xml:xml-node-tag (cl-xml:xml-document-root doc))))))
+
+(test sax-self-closing-events
+  "A self-closing element fires start-element then end-element."
+  (let ((events (sax-events "<tag />")))
+    (is (equal '((:start-element "tag" nil)
+                 (:end-element   "tag"))
+               events))))
+
+(test sax-self-closing-with-attributes
+  "A self-closing element fires start-element with the attribute alist."
+  (let ((events (sax-events "<img src=\"logo.png\" />")))
+    (is (equal '((:start-element "img" (("src" . "logo.png")))
+                 (:end-element   "img"))
+               events))))
+
+(test sax-nested-element-event-order
+  "Nested elements produce events in the correct depth-first order."
+  (let ((events (sax-events "<a><b /></a>")))
+    (is (equal '((:start-element "a" nil)
+                 (:start-element "b" nil)
+                 (:end-element   "b")
+                 (:end-element   "a"))
+               events))))
+
+(test sax-text-content-event
+  "Text content fires a CHARACTERS event with the expanded string."
+  (let ((events (sax-events "<p>hello &amp; world</p>")))
+    (is (equal '((:start-element "p" nil)
+                 (:characters    "hello & world")
+                 (:end-element   "p"))
+               events))))
+
+(test sax-whitespace-text-reported
+  "Custom handlers receive whitespace-only character runs (unlike dom-builder)."
+  (let ((events (sax-events "<root>
+  <a />
+</root>")))
+    ;; The custom handler sees all characters; filter to :characters events.
+    (let ((char-events (remove-if-not (lambda (e) (eq :characters (first e)))
+                                      events)))
+      (is (plusp (length char-events))))))
+
+(test sax-comment-event
+  "Comments fire a COMMENT event with the raw body."
+  (let ((events (sax-events "<root><!-- hello --></root>")))
+    (is (equal '((:start-element "root" nil)
+                 (:comment       " hello ")
+                 (:end-element   "root"))
+               events))))
+
+(test sax-pi-event
+  "Processing instructions fire a PROCESSING-INSTRUCTION event."
+  (let ((events (sax-events "<root><?app data?></root>")))
+    (is (equal '((:start-element "root" nil)
+                 (:pi            "app" "data")
+                 (:end-element   "root"))
+               events))))
+
+(test sax-cdata-event
+  "CDATA sections fire a CDATA-SECTION event with the literal content."
+  (let ((events (sax-events "<root><![CDATA[a<b>&c]]></root>")))
+    (is (equal '((:start-element "root" nil)
+                 (:cdata         "a<b>&c")
+                 (:end-element   "root"))
+               events))))
+
+(test sax-prolog-pi-event
+  "A prolog processing instruction fires a PROCESSING-INSTRUCTION event."
+  (let ((events (sax-events "<?xml version=\"1.0\"?><root />")))
+    (is (equal '((:pi            "xml" "version=\"1.0\"")
+                 (:start-element "root" nil)
+                 (:end-element   "root"))
+               events))))
+
+(test sax-prolog-comment-event
+  "A prolog comment fires a COMMENT event."
+  (let ((events (sax-events "<!-- intro --><root />")))
+    (is (equal '((:comment       " intro ")
+                 (:start-element "root" nil)
+                 (:end-element   "root"))
+               events))))
+
+(test sax-end-document-return-value
+  "The return value of END-DOCUMENT becomes the return value of PARSE-XML."
+  (let ((result (cl-xml:parse-xml "<x />" :handler (make-instance 'collecting-handler))))
+    (is (listp result))
+    (is (equal '(:start-element "x" nil) (first result)))
+    (is (equal '(:end-element   "x")     (second result)))))
+
+(test sax-dom-builder-is-default
+  "The dom-builder preserves whitespace-filtering: whitespace-only text is discarded."
+  (let ((root (parse-root "<root>
+  <a />
+</root>")))
+    (is (= 1 (length (cl-xml:xml-node-children root))))
+    (is (cl-xml:xml-node-p (first (cl-xml:xml-node-children root))))))
+
 (test full-prolog
   "A document with XML decl, DOCTYPE, and a prolog comment is parsed correctly."
   (let* ((xml (concatenate 'string
