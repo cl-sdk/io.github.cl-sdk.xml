@@ -71,7 +71,11 @@ ROOT is the root xml-node."
 ;;; BOM stripping — XML 1.0 Appendix F
 
 (defun strip-bom (str)
-  "Strip a leading Unicode BOM (U+FEFF) from STR if present, per XML Appendix F."
+  "Strip a leading Unicode BOM (U+FEFF) from STR if present, per XML Appendix F.
+Returns a new string with the BOM removed, or STR unchanged if no BOM is present.
+A new string is allocated intentionally: the parser uses positions into the string,
+so removing the BOM by adjusting an offset throughout would require plumbing changes
+across every parsing function."
   (if (and (> (length str) 0) (char= (char str 0) #\uFEFF))
       (subseq str 1)
       str))
@@ -423,7 +427,9 @@ of the root element."
 
 (defun parse-xml-declaration-attrs (data)
   "Parse the pseudo-attributes from an XML declaration PI data string DATA.
-Appends a '/>\\' sentinel so that parse-attributes sees a valid terminator.
+Appends a '/>' sentinel so that parse-attributes sees a valid attribute-list
+terminator (it stops when it encounters '>' or '/').  This sentinel must stay
+in sync with parse-attributes' termination check.
 Returns an alist of (name . value) pairs."
   (car (parse-attributes (concatenate 'string data "/>") 0)))
 
@@ -440,7 +446,10 @@ are both accepted as the default.  Any other declared encoding signals an error.
                                  (parse-xml-declaration-attrs (xml-pi-data decl))
                                  :test #'string=)))))
     (when (and encoding (not (string-equal encoding "UTF-8")))
-      (error "Unsupported encoding '~a': only UTF-8 is supported" encoding))))
+      (error "Unsupported encoding '~a': only UTF-8 is supported. ~
+              Transcode the document to UTF-8 before passing it to parse-xml, ~
+              or omit the encoding declaration to use the default (UTF-8)."
+             encoding))))
 
 ;;; Public API
 
