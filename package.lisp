@@ -30,6 +30,13 @@
    #:xml-cdata-p
    #:make-xml-cdata
    #:xml-cdata-data
+   ;; Qualified name (namespace-aware)
+   #:xml-qname
+   #:xml-qname-p
+   #:make-xml-qname
+   #:xml-qname-prefix
+   #:xml-qname-local-name
+   #:xml-qname-namespace-uri
    ;; SAX handler protocol
    #:sax-handler
    #:start-document
@@ -42,5 +49,6 @@
    #:cdata-section
    ;; Default DOM-building handler
    #:dom-builder
-   ;; Entry point
-   #:parse-xml))
+   ;; Entry points
+   #:parse-xml
+   #:resolve-namespaces))

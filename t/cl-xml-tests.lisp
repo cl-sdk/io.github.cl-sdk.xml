@@ -501,3 +501,164 @@
     (is (string= "el" (cl-xml:xml-node-tag root)))
     (is (equal '(("key" . "v")) (cl-xml:xml-node-attributes root)))
     (is (string= "hello" (first (cl-xml:xml-node-children root))))))
+
+;;; ── Namespace resolution (resolve-namespaces) ────────────────────────────
+
+(defun resolve-root-tag (str)
+  "Parse STR, resolve namespaces, and return the tag (xml-qname) of the root xml-node."
+  (cl-xml:xml-node-tag
+   (cl-xml:xml-document-root
+    (cl-xml:resolve-namespaces (cl-xml:parse-xml str)))))
+
+(test ns-qname-struct
+  "xml-qname struct has prefix, local-name, and namespace-uri fields."
+  (let ((q (cl-xml:make-xml-qname :prefix "ns" :local-name "tag"
+                                  :namespace-uri "http://example.com/")))
+    (is (cl-xml:xml-qname-p q))
+    (is (string= "ns"                  (cl-xml:xml-qname-prefix q)))
+    (is (string= "tag"                 (cl-xml:xml-qname-local-name q)))
+    (is (string= "http://example.com/" (cl-xml:xml-qname-namespace-uri q)))))
+
+(test ns-resolve-prefixed-element
+  "A prefixed element tag is resolved to an xml-qname with the correct URI."
+  (let ((tag (resolve-root-tag "<ns:root xmlns:ns=\"http://example.com/\" />")))
+    (is (cl-xml:xml-qname-p tag))
+    (is (string= "ns"                  (cl-xml:xml-qname-prefix tag)))
+    (is (string= "root"                (cl-xml:xml-qname-local-name tag)))
+    (is (string= "http://example.com/" (cl-xml:xml-qname-namespace-uri tag)))))
+
+(test ns-resolve-default-namespace
+  "An unprefixed element in a default namespace gets the declared namespace URI."
+  (let ((tag (resolve-root-tag "<root xmlns=\"http://example.com/\" />")))
+    (is (cl-xml:xml-qname-p tag))
+    (is (null (cl-xml:xml-qname-prefix tag)))
+    (is (string= "root"                (cl-xml:xml-qname-local-name tag)))
+    (is (string= "http://example.com/" (cl-xml:xml-qname-namespace-uri tag)))))
+
+(test ns-resolve-no-namespace
+  "An unprefixed element with no default namespace has nil namespace-uri."
+  (let ((tag (resolve-root-tag "<root />")))
+    (is (cl-xml:xml-qname-p tag))
+    (is (null (cl-xml:xml-qname-prefix tag)))
+    (is (string= "root" (cl-xml:xml-qname-local-name tag)))
+    (is (null (cl-xml:xml-qname-namespace-uri tag)))))
+
+(test ns-resolve-xmlns-attrs-removed
+  "xmlns and xmlns:prefix attributes are absent after resolve-namespaces."
+  (let* ((doc      (cl-xml:parse-xml
+                    "<root xmlns=\"http://a.com/\" xmlns:b=\"http://b.com/\" />"))
+         (resolved (cl-xml:resolve-namespaces doc))
+         (attrs    (cl-xml:xml-node-attributes
+                    (cl-xml:xml-document-root resolved))))
+    (is (null attrs))))
+
+(test ns-resolve-prefixed-attribute
+  "A prefixed attribute key is resolved to an xml-qname with the correct URI."
+  (let* ((doc      (cl-xml:parse-xml
+                    "<root xmlns:ns=\"http://example.com/\" ns:attr=\"val\" />"))
+         (resolved (cl-xml:resolve-namespaces doc))
+         (attrs    (cl-xml:xml-node-attributes
+                    (cl-xml:xml-document-root resolved))))
+    (is (= 1 (length attrs)))
+    (let ((key (caar attrs)))
+      (is (cl-xml:xml-qname-p key))
+      (is (string= "ns"                  (cl-xml:xml-qname-prefix key)))
+      (is (string= "attr"                (cl-xml:xml-qname-local-name key)))
+      (is (string= "http://example.com/" (cl-xml:xml-qname-namespace-uri key))))
+    (is (string= "val" (cdar attrs)))))
+
+(test ns-resolve-unprefixed-attribute-has-no-ns
+  "An unprefixed attribute has nil namespace-uri even when a default ns is active."
+  (let* ((doc      (cl-xml:parse-xml
+                    "<root xmlns=\"http://example.com/\" attr=\"val\" />"))
+         (resolved (cl-xml:resolve-namespaces doc))
+         (attrs    (cl-xml:xml-node-attributes
+                    (cl-xml:xml-document-root resolved))))
+    (is (= 1 (length attrs)))
+    (let ((key (caar attrs)))
+      (is (cl-xml:xml-qname-p key))
+      (is (null (cl-xml:xml-qname-prefix key)))
+      (is (string= "attr" (cl-xml:xml-qname-local-name key)))
+      (is (null (cl-xml:xml-qname-namespace-uri key))))))
+
+(test ns-resolve-inherited-binding
+  "Namespace bindings declared on a parent are visible in child elements."
+  (let* ((doc      (cl-xml:parse-xml
+                    "<root xmlns:ns=\"http://example.com/\"><ns:child /></root>"))
+         (resolved (cl-xml:resolve-namespaces doc))
+         (child    (first (cl-xml:xml-node-children
+                           (cl-xml:xml-document-root resolved))))
+         (ctag     (cl-xml:xml-node-tag child)))
+    (is (cl-xml:xml-qname-p ctag))
+    (is (string= "ns"                  (cl-xml:xml-qname-prefix ctag)))
+    (is (string= "child"               (cl-xml:xml-qname-local-name ctag)))
+    (is (string= "http://example.com/" (cl-xml:xml-qname-namespace-uri ctag)))))
+
+(test ns-resolve-xml-prefix-predeclared
+  "The 'xml' prefix is pre-declared and resolves without an explicit xmlns:xml."
+  (let* ((doc      (cl-xml:parse-xml "<root xml:lang=\"en\" />"))
+         (resolved (cl-xml:resolve-namespaces doc))
+         (attrs    (cl-xml:xml-node-attributes
+                    (cl-xml:xml-document-root resolved))))
+    (is (= 1 (length attrs)))
+    (let ((key (caar attrs)))
+      (is (string= "xml"  (cl-xml:xml-qname-prefix key)))
+      (is (string= "lang" (cl-xml:xml-qname-local-name key)))
+      (is (string= "http://www.w3.org/XML/1998/namespace"
+                   (cl-xml:xml-qname-namespace-uri key))))))
+
+(test ns-resolve-undeclared-prefix-error
+  "Using an undeclared namespace prefix signals an error."
+  (signals error
+    (cl-xml:resolve-namespaces (cl-xml:parse-xml "<ns:root />"))))
+
+(test ns-resolve-default-ns-reset
+  "An xmlns='' declaration on a child resets the default namespace to nil."
+  (let* ((doc      (cl-xml:parse-xml
+                    "<root xmlns=\"http://example.com/\"><child xmlns=\"\" /></root>"))
+         (resolved (cl-xml:resolve-namespaces doc))
+         (child    (first (cl-xml:xml-node-children
+                           (cl-xml:xml-document-root resolved))))
+         (ctag     (cl-xml:xml-node-tag child)))
+    (is (null (cl-xml:xml-qname-namespace-uri ctag)))))
+
+(test ns-resolve-returns-xml-document
+  "resolve-namespaces returns an xml-document."
+  (let ((resolved (cl-xml:resolve-namespaces (cl-xml:parse-xml "<root />"))))
+    (is (cl-xml:xml-document-p resolved))))
+
+(test ns-resolve-preserves-prolog
+  "resolve-namespaces preserves the document prolog unchanged."
+  (let* ((doc      (cl-xml:parse-xml "<!-- comment --><root />"))
+         (resolved (cl-xml:resolve-namespaces doc)))
+    (is (equal (cl-xml:xml-document-prolog doc)
+               (cl-xml:xml-document-prolog resolved)))))
+
+(test ns-resolve-multiple-prefixes
+  "Multiple namespace prefixes on the same element are all resolved correctly."
+  (let* ((doc      (cl-xml:parse-xml
+                    (concatenate 'string
+                      "<root xmlns:a=\"http://a.com/\""
+                      "      xmlns:b=\"http://b.com/\""
+                      "      a:x=\"1\" b:y=\"2\" />")))
+         (resolved (cl-xml:resolve-namespaces doc))
+         (attrs    (cl-xml:xml-node-attributes
+                    (cl-xml:xml-document-root resolved))))
+    (is (= 2 (length attrs)))
+    (let ((a-attr (find "x" attrs :key (lambda (e) (cl-xml:xml-qname-local-name (car e)))
+                                  :test #'string=))
+          (b-attr (find "y" attrs :key (lambda (e) (cl-xml:xml-qname-local-name (car e)))
+                                  :test #'string=)))
+      (is (string= "http://a.com/" (cl-xml:xml-qname-namespace-uri (car a-attr))))
+      (is (string= "http://b.com/" (cl-xml:xml-qname-namespace-uri (car b-attr)))))))
+
+(test ns-resolve-preserves-text-children
+  "Text and CDATA children are passed through unchanged by resolve-namespaces."
+  (let* ((doc      (cl-xml:parse-xml
+                    "<root xmlns=\"http://example.com/\">hello</root>"))
+         (resolved (cl-xml:resolve-namespaces doc))
+         (children (cl-xml:xml-node-children
+                    (cl-xml:xml-document-root resolved))))
+    (is (= 1 (length children)))
+    (is (string= "hello" (first children)))))
+
