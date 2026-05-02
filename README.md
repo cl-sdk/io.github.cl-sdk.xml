@@ -154,6 +154,14 @@ Whitespace-only character data between elements is discarded.
 - **§3.1 Attributes** — duplicate attribute names are an error
 - **§4.6 References** — `&amp;` `&lt;` `&gt;` `&quot;` `&apos;` `&#N;` `&#xN;` expanded
 
+## References
+
+cl-xml is a hand-written recursive-descent parser implemented in Common Lisp.
+It targets the specifications listed below.
+
+- [Extensible Markup Language (XML) 1.0](https://www.w3.org/TR/xml/) — the core grammar and well-formedness rules that govern parsing, character data, entity references, comments, CDATA sections, processing instructions, and the document prolog.
+- [XML Schema Part 1: Structures](https://www.w3.org/TR/xmlschema-1/) — the schema-definition language used as a reference for element and attribute declarations, content models, and type hierarchies.
+
 ## License
 
 MIT
