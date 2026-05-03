@@ -15,7 +15,8 @@
 ;;;   Boolean: and or
 ;;;   Functions: count string number boolean normalize-space string-length
 ;;;              contains starts-with not last position name local-name
-;;;              true false concat substring translate sum
+;;;              true false concat substring substring-before substring-after
+;;;              translate sum
 ;;; ─────────────────────────────────────────────────────────────────────────
 
 ;;;; ── 1. Tokenizer ─────────────────────────────────────────────────────────
@@ -666,7 +667,7 @@ XPATH-STRING, XPATH-NUMBER, and XPATH-BOOLEAN."
     ((null val)    "")
     ((eq val t)    "true")
     ((numberp val)
-     (if (and (floatp val) (= val (ffloor val)))
+     (if (and (floatp val) (zerop (nth-value 1 (floor val))))
          (format nil "~D" (round val))
          (let ((s (format nil "~A" val)))
            ;; Remove trailing 'd0'/'d+0' SBCL double-float suffix
@@ -943,10 +944,6 @@ XPATH-STRING, XPATH-NUMBER, and XPATH-BOOLEAN."
        (let ((s (arg-str 0)) (prefix (arg-str 1)))
          (and (>= (length s) (length prefix))
               (string= s prefix :end1 (length prefix)))))
-      ((string= name "ends-with")
-       (let ((s (arg-str 0)) (suffix (arg-str 1)))
-         (and (>= (length s) (length suffix))
-              (string= s suffix :start1 (- (length s) (length suffix))))))
       ((string= name "concat")
        (apply #'concatenate 'string (mapcar (lambda (a)
                                               (%xpath-to-string (%xpath-eval a ctx)))
