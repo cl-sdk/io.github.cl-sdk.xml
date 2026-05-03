@@ -13,4 +13,5 @@
                (:file "namespace"    :depends-on ("structures"))
                (:file "api"          :depends-on ("events" "sax" "dom-builder"))
                (:file "xsd"          :depends-on ("api" "structures" "chars"))
-               (:file "soap"         :depends-on ("api" "structures" "namespace"))))
+               (:file "soap"         :depends-on ("api" "structures" "namespace"))
+               (:file "wsdl"         :depends-on ("api" "structures" "namespace"))))
