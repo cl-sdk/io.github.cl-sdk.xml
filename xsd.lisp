@@ -447,7 +447,7 @@ Signals an error if REF is not found."
        (let* ((start (if (member (char str 0) '(#\+ #\-)) 1 0))
               (body  (subseq str start))
               (dots  (count #\. body)))
-         (and (< start (+ start (length body) 1))
+         (and (< start (length str))
               (<= dots 1)
               (> (length body) 0)
               (every (lambda (c) (or (digit-char-p c) (char= c #\.))) body)
@@ -672,7 +672,13 @@ Signals xsd-validation-error when validation fails."
                (dot   (position #\. s))
                (int-s (if dot (subseq s 0 dot) s))
                (frac-s (if dot (subseq s (1+ dot)) ""))
-               (digits (+ (length (string-trim "0" int-s))
+               ;; When the integer part is all zeros (e.g. "0"), treat it as
+               ;; 1 significant digit rather than 0 to correctly count "0.0".
+               (int-trimmed (string-trim "0" int-s))
+               (int-digits  (if (and (string= int-trimmed "") (> (length int-s) 0))
+                                1
+                                (length int-trimmed)))
+               (digits (+ int-digits
                           (length (string-right-trim "0" frac-s)))))
           (when (> digits total-digits)
             (%validation-fail path
