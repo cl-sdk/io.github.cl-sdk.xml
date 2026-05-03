@@ -223,12 +223,16 @@ MESSAGE is a string describing the problem; PATH is the element location, or NIL
   (when str
     (let ((words '()) (start nil))
       (loop for i from 0 to (length str) do
-        (if (or (= i (length str))
-                (member (char str i) '(#\Space #\Tab #\Newline #\Return)))
-            (when start
-              (push (subseq str start i) words)
-              (setf start nil))
-            (unless start (setf start i))))
+        (let ((whitespace-p
+               (or (= i (length str))
+                   (let ((c (char str i)))
+                     (or (char= c #\Space) (char= c #\Tab)
+                         (char= c #\Newline) (char= c #\Return))))))
+          (if whitespace-p
+              (when start
+                (push (subseq str start i) words)
+                (setf start nil))
+              (unless start (setf start i)))))
       (nreverse words))))
 
 ;;; ─── Internal helpers — XML character escaping ───────────────────────────
@@ -291,7 +295,7 @@ MESSAGE is a string describing the problem; PATH is the element location, or NIL
      (format stream "<!--~a-->" (xml-comment-data node)))
     (xml-pi
      (let ((data (xml-pi-data node)))
-       (if (string= data "")
+       (if (zerop (length data))
            (format stream "<?~a?>" (xml-pi-target node))
            (format stream "<?~a ~a?>" (xml-pi-target node) data))))
     (xml-cdata
@@ -543,23 +547,21 @@ Signals wsdl-error if:
 
 ;;; ─── Internal helpers — serialization of WSDL structures ────────────────
 
-(defun %serialize-wsdl-message-ref (local stream)
-  "Serialize a wsdl-message-ref struct to STREAM with the given LOCAL tag name."
-  (lambda (ref)
-    (write-string "<wsdl:" stream)
-    (write-string local stream)
-    (%wsdl-write-attr stream "messageLabel" (wsdl-message-ref-message-label ref))
-    (%wsdl-write-attr stream "element"      (wsdl-message-ref-element ref))
-    (write-string " />" stream)))
+(defun %serialize-wsdl-message-ref (local ref stream)
+  "Serialize wsdl-message-ref REF to STREAM with the given LOCAL tag name."
+  (write-string "<wsdl:" stream)
+  (write-string local stream)
+  (%wsdl-write-attr stream "messageLabel" (wsdl-message-ref-message-label ref))
+  (%wsdl-write-attr stream "element"      (wsdl-message-ref-element ref))
+  (write-string " />" stream))
 
-(defun %serialize-wsdl-fault-ref (local stream)
-  "Serialize a wsdl-fault-ref struct to STREAM with the given LOCAL tag name."
-  (lambda (ref)
-    (write-string "<wsdl:" stream)
-    (write-string local stream)
-    (%wsdl-write-attr stream "messageLabel" (wsdl-fault-ref-message-label ref))
-    (%wsdl-write-attr stream "ref"          (wsdl-fault-ref-ref ref))
-    (write-string " />" stream)))
+(defun %serialize-wsdl-fault-ref (local ref stream)
+  "Serialize wsdl-fault-ref REF to STREAM with the given LOCAL tag name."
+  (write-string "<wsdl:" stream)
+  (write-string local stream)
+  (%wsdl-write-attr stream "messageLabel" (wsdl-fault-ref-message-label ref))
+  (%wsdl-write-attr stream "ref"          (wsdl-fault-ref-ref ref))
+  (write-string " />" stream))
 
 (defun %serialize-wsdl-interface-operation (op stream)
   "Serialize wsdl-interface-operation OP to STREAM."
@@ -577,13 +579,13 @@ Signals wsdl-error if:
       (progn
         (write-char #\> stream)
         (dolist (r (wsdl-interface-operation-inputs op))
-          (funcall (%serialize-wsdl-message-ref "input" stream) r))
+          (%serialize-wsdl-message-ref "input" r stream))
         (dolist (r (wsdl-interface-operation-outputs op))
-          (funcall (%serialize-wsdl-message-ref "output" stream) r))
+          (%serialize-wsdl-message-ref "output" r stream))
         (dolist (r (wsdl-interface-operation-in-faults op))
-          (funcall (%serialize-wsdl-fault-ref "infault" stream) r))
+          (%serialize-wsdl-fault-ref "infault" r stream))
         (dolist (r (wsdl-interface-operation-out-faults op))
-          (funcall (%serialize-wsdl-fault-ref "outfault" stream) r))
+          (%serialize-wsdl-fault-ref "outfault" r stream))
         (write-string "</wsdl:operation>" stream))
       (write-string " />" stream)))
 
@@ -622,13 +624,13 @@ Signals wsdl-error if:
       (progn
         (write-char #\> stream)
         (dolist (r (wsdl-binding-operation-inputs op))
-          (funcall (%serialize-wsdl-message-ref "input" stream) r))
+          (%serialize-wsdl-message-ref "input" r stream))
         (dolist (r (wsdl-binding-operation-outputs op))
-          (funcall (%serialize-wsdl-message-ref "output" stream) r))
+          (%serialize-wsdl-message-ref "output" r stream))
         (dolist (r (wsdl-binding-operation-in-faults op))
-          (funcall (%serialize-wsdl-fault-ref "infault" stream) r))
+          (%serialize-wsdl-fault-ref "infault" r stream))
         (dolist (r (wsdl-binding-operation-out-faults op))
-          (funcall (%serialize-wsdl-fault-ref "outfault" stream) r))
+          (%serialize-wsdl-fault-ref "outfault" r stream))
         (write-string "</wsdl:operation>" stream))
       (write-string " />" stream)))
 
