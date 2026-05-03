@@ -11,4 +11,5 @@
                (:file "sax"          :depends-on ("package"))
                (:file "dom-builder"  :depends-on ("sax" "structures" "chars"))
                (:file "namespace"    :depends-on ("structures"))
-               (:file "api"          :depends-on ("events" "sax" "dom-builder"))))
+               (:file "api"          :depends-on ("events" "sax" "dom-builder"))
+               (:file "xsd"          :depends-on ("api" "structures" "chars"))))
