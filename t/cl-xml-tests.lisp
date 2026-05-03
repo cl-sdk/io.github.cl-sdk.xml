@@ -1266,35 +1266,35 @@
 
 (test load-xsd-returns-schema
   "load-xsd returns an xsd-schema struct."
-  (let ((schema (cl-xml:load-xsd +simple-xsd+)))
-    (is (cl-xml:xsd-schema-p schema))))
+  (let ((schema (cl-xml.xsd:load-xsd +simple-xsd+)))
+    (is (cl-xml.xsd:xsd-schema-p schema))))
 
 (test load-xsd-parses-target-namespace
   "load-xsd captures the targetNamespace attribute."
-  (let ((schema (cl-xml:load-xsd
+  (let ((schema (cl-xml.xsd:load-xsd
                  "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"
            targetNamespace=\"http://example.com/ns\">
   <xs:element name=\"root\" type=\"xs:string\"/>
 </xs:schema>")))
     (is (string= "http://example.com/ns"
-                 (cl-xml:xsd-schema-target-namespace schema)))))
+                 (cl-xml.xsd:xsd-schema-target-namespace schema)))))
 
 (test load-xsd-parses-top-level-element
   "load-xsd populates the elements alist with top-level xs:element declarations."
-  (let* ((schema (cl-xml:load-xsd +simple-xsd+))
-         (elem   (cdr (assoc "root" (cl-xml:xsd-schema-elements schema)
+  (let* ((schema (cl-xml.xsd:load-xsd +simple-xsd+))
+         (elem   (cdr (assoc "root" (cl-xml.xsd:xsd-schema-elements schema)
                              :test #'string=))))
     (is (not (null elem)))
-    (is (cl-xml:xsd-element-p elem))
-    (is (string= "root" (cl-xml:xsd-element-name elem)))
-    (is (eq :string (cl-xml:xsd-element-type elem)))
-    (is (= 1 (cl-xml:xsd-element-min-occurs elem)))
-    (is (= 1 (cl-xml:xsd-element-max-occurs elem)))))
+    (is (cl-xml.xsd:xsd-element-p elem))
+    (is (string= "root" (cl-xml.xsd:xsd-element-name elem)))
+    (is (eq :string (cl-xml.xsd:xsd-element-type elem)))
+    (is (= 1 (cl-xml.xsd:xsd-element-min-occurs elem)))
+    (is (= 1 (cl-xml.xsd:xsd-element-max-occurs elem)))))
 
 (test load-xsd-parses-named-complex-type
   "load-xsd places a named xs:complexType in the types alist."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"person\" type=\"PersonType\"/>
@@ -1306,20 +1306,20 @@
     <xs:attribute name=\"id\" type=\"xs:integer\" use=\"required\"/>
   </xs:complexType>
 </xs:schema>"))
-         (ctype (cdr (assoc "PersonType" (cl-xml:xsd-schema-types schema)
+         (ctype (cdr (assoc "PersonType" (cl-xml.xsd:xsd-schema-types schema)
                             :test #'string=))))
-    (is (cl-xml:xsd-complex-type-p ctype))
-    (is (string= "PersonType" (cl-xml:xsd-complex-type-name ctype)))
-    (is (eq :sequence (cl-xml:xsd-complex-type-compositor ctype)))
-    (is (= 2 (length (cl-xml:xsd-complex-type-elements ctype))))
-    (is (= 1 (length (cl-xml:xsd-complex-type-attributes ctype))))
+    (is (cl-xml.xsd:xsd-complex-type-p ctype))
+    (is (string= "PersonType" (cl-xml.xsd:xsd-complex-type-name ctype)))
+    (is (eq :sequence (cl-xml.xsd:xsd-complex-type-compositor ctype)))
+    (is (= 2 (length (cl-xml.xsd:xsd-complex-type-elements ctype))))
+    (is (= 1 (length (cl-xml.xsd:xsd-complex-type-attributes ctype))))
     (is (eq :required
-            (cl-xml:xsd-attribute-use
-             (first (cl-xml:xsd-complex-type-attributes ctype)))))))
+            (cl-xml.xsd:xsd-attribute-use
+             (first (cl-xml.xsd:xsd-complex-type-attributes ctype)))))))
 
 (test load-xsd-parses-named-simple-type
   "load-xsd places a named xs:simpleType with restriction in the types alist."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:simpleType name=\"SizeType\">
@@ -1331,17 +1331,17 @@
   </xs:simpleType>
   <xs:element name=\"size\" type=\"SizeType\"/>
 </xs:schema>"))
-         (stype (cdr (assoc "SizeType" (cl-xml:xsd-schema-types schema)
+         (stype (cdr (assoc "SizeType" (cl-xml.xsd:xsd-schema-types schema)
                             :test #'string=))))
-    (is (cl-xml:xsd-simple-type-p stype))
-    (is (string= "SizeType" (cl-xml:xsd-simple-type-name stype)))
-    (is (eq :string (cl-xml:xsd-simple-type-base stype)))
+    (is (cl-xml.xsd:xsd-simple-type-p stype))
+    (is (string= "SizeType" (cl-xml.xsd:xsd-simple-type-name stype)))
+    (is (eq :string (cl-xml.xsd:xsd-simple-type-base stype)))
     (is (equal '("small" "medium" "large")
-               (getf (cl-xml:xsd-simple-type-facets stype) :enumeration)))))
+               (getf (cl-xml.xsd:xsd-simple-type-facets stype) :enumeration)))))
 
 (test load-xsd-parses-occurs
   "load-xsd parses minOccurs/maxOccurs including 'unbounded'."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"list\">
@@ -1353,16 +1353,16 @@
     </xs:complexType>
   </xs:element>
 </xs:schema>"))
-         (list-elem (cdr (assoc "list" (cl-xml:xsd-schema-elements schema)
+         (list-elem (cdr (assoc "list" (cl-xml.xsd:xsd-schema-elements schema)
                                 :test #'string=)))
-         (ctype     (cl-xml:xsd-element-type list-elem))
-         (item-decl (first (cl-xml:xsd-complex-type-elements ctype))))
-    (is (= 0 (cl-xml:xsd-element-min-occurs item-decl)))
-    (is (eq :unbounded (cl-xml:xsd-element-max-occurs item-decl)))))
+         (ctype     (cl-xml.xsd:xsd-element-type list-elem))
+         (item-decl (first (cl-xml.xsd:xsd-complex-type-elements ctype))))
+    (is (= 0 (cl-xml.xsd:xsd-element-min-occurs item-decl)))
+    (is (eq :unbounded (cl-xml.xsd:xsd-element-max-occurs item-decl)))))
 
 (test load-xsd-inline-complex-type
   "load-xsd handles inline anonymous xs:complexType inside xs:element."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"root\">
@@ -1373,34 +1373,34 @@
     </xs:complexType>
   </xs:element>
 </xs:schema>"))
-         (root-elem (cdr (assoc "root" (cl-xml:xsd-schema-elements schema)
+         (root-elem (cdr (assoc "root" (cl-xml.xsd:xsd-schema-elements schema)
                                 :test #'string=)))
-         (ctype     (cl-xml:xsd-element-type root-elem)))
-    (is (cl-xml:xsd-complex-type-p ctype))
-    (is (null (cl-xml:xsd-complex-type-name ctype)))  ; anonymous
-    (is (= 1 (length (cl-xml:xsd-complex-type-elements ctype))))))
+         (ctype     (cl-xml.xsd:xsd-element-type root-elem)))
+    (is (cl-xml.xsd:xsd-complex-type-p ctype))
+    (is (null (cl-xml.xsd:xsd-complex-type-name ctype)))  ; anonymous
+    (is (= 1 (length (cl-xml.xsd:xsd-complex-type-elements ctype))))))
 
 (test load-xsd-no-prefix
   "load-xsd accepts a schema document without a namespace prefix."
-  (let ((schema (cl-xml:load-xsd "<schema><element name=\"x\" type=\"string\"/></schema>")))
-    (is (cl-xml:xsd-schema-p schema))
-    (is (= 1 (length (cl-xml:xsd-schema-elements schema))))))
+  (let ((schema (cl-xml.xsd:load-xsd "<schema><element name=\"x\" type=\"string\"/></schema>")))
+    (is (cl-xml.xsd:xsd-schema-p schema))
+    (is (= 1 (length (cl-xml.xsd:xsd-schema-elements schema))))))
 
 (test load-xsd-wrong-root-signals-error
   "load-xsd signals an error when the root element is not xs:schema."
-  (signals error (cl-xml:load-xsd "<root/>")))
+  (signals error (cl-xml.xsd:load-xsd "<root/>")))
 
 ;;; ── XSD: validate-xml — valid documents ──────────────────────────────────
 
 (test validate-simple-string-element
   "validate-xml accepts a document whose root element holds a string value."
-  (let ((schema (cl-xml:load-xsd +simple-xsd+))
+  (let ((schema (cl-xml.xsd:load-xsd +simple-xsd+))
         (doc    (cl-xml:parse-xml "<root>hello</root>")))
-    (is (cl-xml:validate-xml doc schema))))
+    (is (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-complex-type-with-sequence
   "validate-xml accepts a document matching a complex type with xs:sequence."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"person\" type=\"PersonType\"/>
@@ -1414,11 +1414,11 @@
 </xs:schema>"))
          (doc (cl-xml:parse-xml
                "<person id=\"1\"><name>Alice</name><age>30</age></person>")))
-    (is (cl-xml:validate-xml doc schema))))
+    (is (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-optional-elements-absent
   "validate-xml accepts a document where optional children are absent."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"root\">
@@ -1430,11 +1430,11 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<root/>")))
-    (is (cl-xml:validate-xml doc schema))))
+    (is (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-unbounded-element
   "validate-xml accepts multiple occurrences of an unbounded element."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"list\">
@@ -1448,11 +1448,11 @@
 </xs:schema>"))
          (doc (cl-xml:parse-xml
                "<list><item>a</item><item>b</item><item>c</item></list>")))
-    (is (cl-xml:validate-xml doc schema))))
+    (is (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-xs-all-compositor
   "validate-xml accepts xs:all children in any order."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"root\">
@@ -1466,12 +1466,12 @@
 </xs:schema>"))
          (doc-ab (cl-xml:parse-xml "<root><a>x</a><b>y</b></root>"))
          (doc-ba (cl-xml:parse-xml "<root><b>y</b><a>x</a></root>")))
-    (is (cl-xml:validate-xml doc-ab schema))
-    (is (cl-xml:validate-xml doc-ba schema))))
+    (is (cl-xml.xsd:validate-xml doc-ab schema))
+    (is (cl-xml.xsd:validate-xml doc-ba schema))))
 
 (test validate-xs-choice-compositor
   "validate-xml accepts either branch of an xs:choice."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"root\">
@@ -1485,12 +1485,12 @@
 </xs:schema>"))
          (doc-a (cl-xml:parse-xml "<root><a>hello</a></root>"))
          (doc-b (cl-xml:parse-xml "<root><b>42</b></root>")))
-    (is (cl-xml:validate-xml doc-a schema))
-    (is (cl-xml:validate-xml doc-b schema))))
+    (is (cl-xml.xsd:validate-xml doc-a schema))
+    (is (cl-xml.xsd:validate-xml doc-b schema))))
 
 (test validate-enumeration-restriction
   "validate-xml accepts a value that is in an xs:enumeration list."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"size\">
@@ -1504,11 +1504,11 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<size>medium</size>")))
-    (is (cl-xml:validate-xml doc schema))))
+    (is (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-length-facet
   "validate-xml accepts a string whose length satisfies xs:minLength/xs:maxLength."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"code\">
@@ -1521,11 +1521,11 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<code>abc</code>")))
-    (is (cl-xml:validate-xml doc schema))))
+    (is (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-min-inclusive-facet
   "validate-xml accepts a numeric value satisfying xs:minInclusive."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"score\">
@@ -1538,49 +1538,49 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<score>75</score>")))
-    (is (cl-xml:validate-xml doc schema))))
+    (is (cl-xml.xsd:validate-xml doc schema))))
 
 ;;; ── XSD: validate-xml — invalid documents (error signaling) ─────────────
 
 (test validate-wrong-root-element
   "validate-xml signals xsd-validation-error when the root element is undeclared."
-  (let ((schema (cl-xml:load-xsd +simple-xsd+))
+  (let ((schema (cl-xml.xsd:load-xsd +simple-xsd+))
         (doc    (cl-xml:parse-xml "<wrong>hello</wrong>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-wrong-type-integer
   "validate-xml signals xsd-validation-error for a non-integer value on xs:integer."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"count\" type=\"xs:integer\"/>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<count>not-a-number</count>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-wrong-type-boolean
   "validate-xml signals xsd-validation-error for an invalid xs:boolean value."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"flag\" type=\"xs:boolean\"/>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<flag>yes</flag>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-wrong-type-date
   "validate-xml signals xsd-validation-error for an invalid xs:date value."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"dob\" type=\"xs:date\"/>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<dob>01/01/2000</dob>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-missing-required-child
   "validate-xml signals xsd-validation-error when a required xs:sequence child is absent."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"person\">
@@ -1593,11 +1593,11 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<person><name>Alice</name></person>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-missing-required-attribute
   "validate-xml signals xsd-validation-error when a required attribute is absent."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"item\">
@@ -1607,11 +1607,11 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<item/>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-prohibited-attribute-present
   "validate-xml signals xsd-validation-error when a prohibited attribute appears."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"item\">
@@ -1621,11 +1621,11 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<item banned=\"oops\"/>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-unexpected-element-in-sequence
   "validate-xml signals xsd-validation-error when an unexpected element appears."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"root\">
@@ -1637,11 +1637,11 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<root><known>ok</known><unknown/></root>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-enumeration-violation
   "validate-xml signals xsd-validation-error when a value is not in the enumeration."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"color\">
@@ -1655,11 +1655,11 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<color>purple</color>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-max-length-violation
   "validate-xml signals xsd-validation-error when a string exceeds xs:maxLength."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"pin\">
@@ -1671,11 +1671,11 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<pin>12345</pin>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 (test validate-min-inclusive-violation
   "validate-xml signals xsd-validation-error when xs:minInclusive is violated."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"score\">
@@ -1688,21 +1688,21 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<score>-5</score>")))
-    (signals cl-xml:xsd-validation-error (cl-xml:validate-xml doc schema))))
+    (signals cl-xml.xsd:xsd-validation-error (cl-xml.xsd:validate-xml doc schema))))
 
 ;;; ── XSD: xsd-validation-error condition ─────────────────────────────────
 
 (test xsd-validation-error-has-message
   "xsd-validation-error condition carries a message string."
   (handler-case
-      (cl-xml:validate-xml (cl-xml:parse-xml "<wrong/>")
-                           (cl-xml:load-xsd +simple-xsd+))
-    (cl-xml:xsd-validation-error (e)
-      (is (stringp (cl-xml:xsd-validation-error-message e))))))
+      (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<wrong/>")
+                           (cl-xml.xsd:load-xsd +simple-xsd+))
+    (cl-xml.xsd:xsd-validation-error (e)
+      (is (stringp (cl-xml.xsd:xsd-validation-error-message e))))))
 
 (test xsd-validation-error-path-is-set-for-nested-failure
   "xsd-validation-error carries a non-nil path for a failure inside a nested element."
-  (let* ((schema (cl-xml:load-xsd
+  (let* ((schema (cl-xml.xsd:load-xsd
                   "<?xml version=\"1.0\"?>
 <xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
   <xs:element name=\"root\">
@@ -1714,62 +1714,62 @@
   </xs:element>
 </xs:schema>"))
          (doc (cl-xml:parse-xml "<root><count>bad</count></root>")))
-    (handler-case (cl-xml:validate-xml doc schema)
-      (cl-xml:xsd-validation-error (e)
-        (is (not (null (cl-xml:xsd-validation-error-path e))))))))
+    (handler-case (cl-xml.xsd:validate-xml doc schema)
+      (cl-xml.xsd:xsd-validation-error (e)
+        (is (not (null (cl-xml.xsd:xsd-validation-error-path e))))))))
 
 ;;; ── XSD: built-in type validators ────────────────────────────────────────
 
 (test builtin-integer-valid
   "xs:integer accepts digit strings and values with a leading sign."
-  (let ((schema (cl-xml:load-xsd
+  (let ((schema (cl-xml.xsd:load-xsd
                  "<?xml version=\"1.0\"?><xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
 <xs:element name=\"n\" type=\"xs:integer\"/></xs:schema>")))
-    (is (cl-xml:validate-xml (cl-xml:parse-xml "<n>0</n>") schema))
-    (is (cl-xml:validate-xml (cl-xml:parse-xml "<n>-42</n>") schema))
-    (is (cl-xml:validate-xml (cl-xml:parse-xml "<n>+999</n>") schema))))
+    (is (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<n>0</n>") schema))
+    (is (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<n>-42</n>") schema))
+    (is (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<n>+999</n>") schema))))
 
 (test builtin-boolean-valid-values
   "xs:boolean accepts true, false, 1, and 0."
-  (let ((schema (cl-xml:load-xsd
+  (let ((schema (cl-xml.xsd:load-xsd
                  "<?xml version=\"1.0\"?><xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
 <xs:element name=\"b\" type=\"xs:boolean\"/></xs:schema>")))
     (dolist (v '("true" "false" "1" "0"))
-      (is (cl-xml:validate-xml
+      (is (cl-xml.xsd:validate-xml
            (cl-xml:parse-xml (format nil "<b>~a</b>" v)) schema)))))
 
 (test builtin-decimal-valid
   "xs:decimal accepts decimal number strings."
-  (let ((schema (cl-xml:load-xsd
+  (let ((schema (cl-xml.xsd:load-xsd
                  "<?xml version=\"1.0\"?><xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
 <xs:element name=\"d\" type=\"xs:decimal\"/></xs:schema>")))
-    (is (cl-xml:validate-xml (cl-xml:parse-xml "<d>3.14</d>") schema))
-    (is (cl-xml:validate-xml (cl-xml:parse-xml "<d>-0.5</d>") schema))
-    (is (cl-xml:validate-xml (cl-xml:parse-xml "<d>42</d>") schema))))
+    (is (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<d>3.14</d>") schema))
+    (is (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<d>-0.5</d>") schema))
+    (is (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<d>42</d>") schema))))
 
 (test builtin-date-valid
   "xs:date accepts YYYY-MM-DD formatted strings."
-  (let ((schema (cl-xml:load-xsd
+  (let ((schema (cl-xml.xsd:load-xsd
                  "<?xml version=\"1.0\"?><xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
 <xs:element name=\"dt\" type=\"xs:date\"/></xs:schema>")))
-    (is (cl-xml:validate-xml (cl-xml:parse-xml "<dt>2024-01-15</dt>") schema))))
+    (is (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<dt>2024-01-15</dt>") schema))))
 
 (test builtin-positive-integer-rejects-zero
   "xs:positiveInteger rejects zero."
-  (let ((schema (cl-xml:load-xsd
+  (let ((schema (cl-xml.xsd:load-xsd
                  "<?xml version=\"1.0\"?><xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
 <xs:element name=\"n\" type=\"xs:positiveInteger\"/></xs:schema>")))
-    (signals cl-xml:xsd-validation-error
-      (cl-xml:validate-xml (cl-xml:parse-xml "<n>0</n>") schema))))
+    (signals cl-xml.xsd:xsd-validation-error
+      (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<n>0</n>") schema))))
 
 (test builtin-byte-range
   "xs:byte rejects a value outside [-128, 127]."
-  (let ((schema (cl-xml:load-xsd
+  (let ((schema (cl-xml.xsd:load-xsd
                  "<?xml version=\"1.0\"?><xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">
 <xs:element name=\"n\" type=\"xs:byte\"/></xs:schema>")))
-    (is (cl-xml:validate-xml (cl-xml:parse-xml "<n>127</n>") schema))
-    (signals cl-xml:xsd-validation-error
-      (cl-xml:validate-xml (cl-xml:parse-xml "<n>128</n>") schema))))
+    (is (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<n>127</n>") schema))
+    (signals cl-xml.xsd:xsd-validation-error
+      (cl-xml.xsd:validate-xml (cl-xml:parse-xml "<n>128</n>") schema))))
 
 ;;; ── SOAP ─────────────────────────────────────────────────────────────────
 
@@ -1778,46 +1778,46 @@
 (test soap-namespace-constants
   "SOAP namespace URI constants have the correct values."
   (is (string= "http://schemas.xmlsoap.org/soap/envelope/"
-               cl-xml:+soap-1.1-namespace+))
+               cl-xml.soap:+soap-1.1-namespace+))
   (is (string= "http://www.w3.org/2003/05/soap-envelope"
-               cl-xml:+soap-1.2-namespace+)))
+               cl-xml.soap:+soap-1.2-namespace+)))
 
 ;;; Structure construction
 
 (test soap-envelope-struct
   "soap-envelope struct can be constructed and its fields read back."
-  (let* ((body (cl-xml:make-soap-body :payload '()))
-         (env  (cl-xml:make-soap-envelope :version :1.1 :body body)))
-    (is (cl-xml:soap-envelope-p env))
-    (is (eq :1.1 (cl-xml:soap-envelope-version env)))
-    (is (null (cl-xml:soap-envelope-header env)))
-    (is (cl-xml:soap-body-p (cl-xml:soap-envelope-body env)))))
+  (let* ((body (cl-xml.soap:make-soap-body :payload '()))
+         (env  (cl-xml.soap:make-soap-envelope :version :1.1 :body body)))
+    (is (cl-xml.soap:soap-envelope-p env))
+    (is (eq :1.1 (cl-xml.soap:soap-envelope-version env)))
+    (is (null (cl-xml.soap:soap-envelope-header env)))
+    (is (cl-xml.soap:soap-body-p (cl-xml.soap:soap-envelope-body env)))))
 
 (test soap-header-struct
   "soap-header struct stores entries correctly."
-  (let ((hdr (cl-xml:make-soap-header :entries '())))
-    (is (cl-xml:soap-header-p hdr))
-    (is (null (cl-xml:soap-header-entries hdr)))))
+  (let ((hdr (cl-xml.soap:make-soap-header :entries '())))
+    (is (cl-xml.soap:soap-header-p hdr))
+    (is (null (cl-xml.soap:soap-header-entries hdr)))))
 
 (test soap-body-struct
   "soap-body struct stores payload correctly."
-  (let ((body (cl-xml:make-soap-body :payload '())))
-    (is (cl-xml:soap-body-p body))
-    (is (null (cl-xml:soap-body-fault body)))
-    (is (null (cl-xml:soap-body-payload body)))))
+  (let ((body (cl-xml.soap:make-soap-body :payload '())))
+    (is (cl-xml.soap:soap-body-p body))
+    (is (null (cl-xml.soap:soap-body-fault body)))
+    (is (null (cl-xml.soap:soap-body-payload body)))))
 
 (test soap-fault-struct
   "soap-fault struct stores all fields correctly."
-  (let ((f (cl-xml:make-soap-fault
+  (let ((f (cl-xml.soap:make-soap-fault
             :code   "soap:Client"
             :string "Bad request"
             :actor  "http://example.com/"
             :detail nil)))
-    (is (cl-xml:soap-fault-p f))
-    (is (string= "soap:Client"         (cl-xml:soap-fault-code f)))
-    (is (string= "Bad request"         (cl-xml:soap-fault-string f)))
-    (is (string= "http://example.com/" (cl-xml:soap-fault-actor f)))
-    (is (null (cl-xml:soap-fault-detail f)))))
+    (is (cl-xml.soap:soap-fault-p f))
+    (is (string= "soap:Client"         (cl-xml.soap:soap-fault-code f)))
+    (is (string= "Bad request"         (cl-xml.soap:soap-fault-string f)))
+    (is (string= "http://example.com/" (cl-xml.soap:soap-fault-actor f)))
+    (is (null (cl-xml.soap:soap-fault-detail f)))))
 
 ;;; parse-soap — SOAP 1.1
 
@@ -1831,20 +1831,20 @@
 
 (test parse-soap-1.1-basic
   "parse-soap returns a soap-envelope with version :1.1 for a SOAP 1.1 message."
-  (let ((env (cl-xml:parse-soap +soap-1.1-minimal+)))
-    (is (cl-xml:soap-envelope-p env))
-    (is (eq :1.1 (cl-xml:soap-envelope-version env)))
-    (is (null (cl-xml:soap-envelope-header env)))
-    (is (cl-xml:soap-body-p (cl-xml:soap-envelope-body env)))
-    (is (null (cl-xml:soap-body-fault (cl-xml:soap-envelope-body env))))
-    (is (= 1 (length (cl-xml:soap-body-payload
-                      (cl-xml:soap-envelope-body env)))))))
+  (let ((env (cl-xml.soap:parse-soap +soap-1.1-minimal+)))
+    (is (cl-xml.soap:soap-envelope-p env))
+    (is (eq :1.1 (cl-xml.soap:soap-envelope-version env)))
+    (is (null (cl-xml.soap:soap-envelope-header env)))
+    (is (cl-xml.soap:soap-body-p (cl-xml.soap:soap-envelope-body env)))
+    (is (null (cl-xml.soap:soap-body-fault (cl-xml.soap:soap-envelope-body env))))
+    (is (= 1 (length (cl-xml.soap:soap-body-payload
+                      (cl-xml.soap:soap-envelope-body env)))))))
 
 (test parse-soap-1.1-body-element-name
   "The body payload element is the GetPrice element."
-  (let* ((env  (cl-xml:parse-soap +soap-1.1-minimal+))
-         (body (cl-xml:soap-envelope-body env))
-         (elem (first (cl-xml:soap-body-payload body)))
+  (let* ((env  (cl-xml.soap:parse-soap +soap-1.1-minimal+))
+         (body (cl-xml.soap:soap-envelope-body env))
+         (elem (first (cl-xml.soap:soap-body-payload body)))
          (tag  (cl-xml:xml-node-tag elem)))
     (is (cl-xml:xml-qname-p tag))
     (is (string= "GetPrice" (cl-xml:xml-qname-local-name tag)))))
@@ -1861,12 +1861,12 @@
 
 (test parse-soap-1.2-basic
   "parse-soap returns a soap-envelope with version :1.2 for a SOAP 1.2 message."
-  (let ((env (cl-xml:parse-soap +soap-1.2-minimal+)))
-    (is (cl-xml:soap-envelope-p env))
-    (is (eq :1.2 (cl-xml:soap-envelope-version env)))
-    (is (null (cl-xml:soap-envelope-header env)))
-    (is (= 1 (length (cl-xml:soap-body-payload
-                      (cl-xml:soap-envelope-body env)))))))
+  (let ((env (cl-xml.soap:parse-soap +soap-1.2-minimal+)))
+    (is (cl-xml.soap:soap-envelope-p env))
+    (is (eq :1.2 (cl-xml.soap:soap-envelope-version env)))
+    (is (null (cl-xml.soap:soap-envelope-header env)))
+    (is (= 1 (length (cl-xml.soap:soap-body-payload
+                      (cl-xml.soap:soap-envelope-body env)))))))
 
 ;;; parse-soap — Header
 
@@ -1883,11 +1883,11 @@
 
 (test parse-soap-with-header
   "parse-soap populates soap-header with the header block elements."
-  (let* ((env (cl-xml:parse-soap +soap-1.1-with-header+))
-         (hdr (cl-xml:soap-envelope-header env)))
-    (is (cl-xml:soap-header-p hdr))
-    (is (= 1 (length (cl-xml:soap-header-entries hdr))))
-    (let* ((entry (first (cl-xml:soap-header-entries hdr)))
+  (let* ((env (cl-xml.soap:parse-soap +soap-1.1-with-header+))
+         (hdr (cl-xml.soap:soap-envelope-header env)))
+    (is (cl-xml.soap:soap-header-p hdr))
+    (is (= 1 (length (cl-xml.soap:soap-header-entries hdr))))
+    (let* ((entry (first (cl-xml.soap:soap-header-entries hdr)))
            (tag   (cl-xml:xml-node-tag entry)))
       (is (cl-xml:xml-qname-p tag))
       (is (string= "Auth" (cl-xml:xml-qname-local-name tag))))))
@@ -1909,41 +1909,41 @@
 
 (test parse-soap-1.1-fault-detected
   "parse-soap sets soap-body-fault for a SOAP 1.1 Fault body."
-  (let* ((env   (cl-xml:parse-soap +soap-1.1-fault+))
-         (body  (cl-xml:soap-envelope-body env))
-         (fault (cl-xml:soap-body-fault body)))
-    (is (cl-xml:soap-fault-p fault))
-    (is (null (cl-xml:soap-body-payload body)))))
+  (let* ((env   (cl-xml.soap:parse-soap +soap-1.1-fault+))
+         (body  (cl-xml.soap:soap-envelope-body env))
+         (fault (cl-xml.soap:soap-body-fault body)))
+    (is (cl-xml.soap:soap-fault-p fault))
+    (is (null (cl-xml.soap:soap-body-payload body)))))
 
 (test parse-soap-1.1-fault-code
   "SOAP 1.1 fault code is extracted from faultcode text."
-  (let* ((fault (cl-xml:soap-body-fault
-                 (cl-xml:soap-envelope-body
-                  (cl-xml:parse-soap +soap-1.1-fault+)))))
-    (is (string= "soap:Client" (cl-xml:soap-fault-code fault)))))
+  (let* ((fault (cl-xml.soap:soap-body-fault
+                 (cl-xml.soap:soap-envelope-body
+                  (cl-xml.soap:parse-soap +soap-1.1-fault+)))))
+    (is (string= "soap:Client" (cl-xml.soap:soap-fault-code fault)))))
 
 (test parse-soap-1.1-fault-string
   "SOAP 1.1 fault string is extracted from faultstring text."
-  (let* ((fault (cl-xml:soap-body-fault
-                 (cl-xml:soap-envelope-body
-                  (cl-xml:parse-soap +soap-1.1-fault+)))))
-    (is (string= "Invalid input" (cl-xml:soap-fault-string fault)))))
+  (let* ((fault (cl-xml.soap:soap-body-fault
+                 (cl-xml.soap:soap-envelope-body
+                  (cl-xml.soap:parse-soap +soap-1.1-fault+)))))
+    (is (string= "Invalid input" (cl-xml.soap:soap-fault-string fault)))))
 
 (test parse-soap-1.1-fault-actor
   "SOAP 1.1 fault actor is extracted from faultactor text."
-  (let* ((fault (cl-xml:soap-body-fault
-                 (cl-xml:soap-envelope-body
-                  (cl-xml:parse-soap +soap-1.1-fault+)))))
-    (is (string= "http://example.com/service" (cl-xml:soap-fault-actor fault)))))
+  (let* ((fault (cl-xml.soap:soap-body-fault
+                 (cl-xml.soap:soap-envelope-body
+                  (cl-xml.soap:parse-soap +soap-1.1-fault+)))))
+    (is (string= "http://example.com/service" (cl-xml.soap:soap-fault-actor fault)))))
 
 (test parse-soap-1.1-fault-detail-present
   "SOAP 1.1 fault detail is the detail xml-node."
-  (let* ((fault (cl-xml:soap-body-fault
-                 (cl-xml:soap-envelope-body
-                  (cl-xml:parse-soap +soap-1.1-fault+)))))
-    (is (cl-xml:xml-node-p (cl-xml:soap-fault-detail fault)))
+  (let* ((fault (cl-xml.soap:soap-body-fault
+                 (cl-xml.soap:soap-envelope-body
+                  (cl-xml.soap:parse-soap +soap-1.1-fault+)))))
+    (is (cl-xml:xml-node-p (cl-xml.soap:soap-fault-detail fault)))
     (is (string= "detail"
-                 (let ((tag (cl-xml:xml-node-tag (cl-xml:soap-fault-detail fault))))
+                 (let ((tag (cl-xml:xml-node-tag (cl-xml.soap:soap-fault-detail fault))))
                    (if (cl-xml:xml-qname-p tag)
                        (cl-xml:xml-qname-local-name tag)
                        tag))))))
@@ -1965,191 +1965,191 @@
 
 (test parse-soap-1.2-fault-code
   "SOAP 1.2 fault code is extracted from Code/Value text."
-  (let* ((fault (cl-xml:soap-body-fault
-                 (cl-xml:soap-envelope-body
-                  (cl-xml:parse-soap +soap-1.2-fault+)))))
-    (is (cl-xml:soap-fault-p fault))
-    (is (string= "env:Sender" (cl-xml:soap-fault-code fault)))))
+  (let* ((fault (cl-xml.soap:soap-body-fault
+                 (cl-xml.soap:soap-envelope-body
+                  (cl-xml.soap:parse-soap +soap-1.2-fault+)))))
+    (is (cl-xml.soap:soap-fault-p fault))
+    (is (string= "env:Sender" (cl-xml.soap:soap-fault-code fault)))))
 
 (test parse-soap-1.2-fault-string
   "SOAP 1.2 fault string is extracted from Reason/Text text."
-  (let* ((fault (cl-xml:soap-body-fault
-                 (cl-xml:soap-envelope-body
-                  (cl-xml:parse-soap +soap-1.2-fault+)))))
-    (is (string= "Bad request" (cl-xml:soap-fault-string fault)))))
+  (let* ((fault (cl-xml.soap:soap-body-fault
+                 (cl-xml.soap:soap-envelope-body
+                  (cl-xml.soap:parse-soap +soap-1.2-fault+)))))
+    (is (string= "Bad request" (cl-xml.soap:soap-fault-string fault)))))
 
 (test parse-soap-1.2-fault-actor
   "SOAP 1.2 Role is mapped to soap-fault-actor."
-  (let* ((fault (cl-xml:soap-body-fault
-                 (cl-xml:soap-envelope-body
-                  (cl-xml:parse-soap +soap-1.2-fault+)))))
-    (is (string= "http://example.com/node" (cl-xml:soap-fault-actor fault)))))
+  (let* ((fault (cl-xml.soap:soap-body-fault
+                 (cl-xml.soap:soap-envelope-body
+                  (cl-xml.soap:parse-soap +soap-1.2-fault+)))))
+    (is (string= "http://example.com/node" (cl-xml.soap:soap-fault-actor fault)))))
 
 (test parse-soap-1.2-fault-detail-present
   "SOAP 1.2 fault Detail is the Detail xml-node."
-  (let* ((fault (cl-xml:soap-body-fault
-                 (cl-xml:soap-envelope-body
-                  (cl-xml:parse-soap +soap-1.2-fault+)))))
-    (is (cl-xml:xml-node-p (cl-xml:soap-fault-detail fault)))
+  (let* ((fault (cl-xml.soap:soap-body-fault
+                 (cl-xml.soap:soap-envelope-body
+                  (cl-xml.soap:parse-soap +soap-1.2-fault+)))))
+    (is (cl-xml:xml-node-p (cl-xml.soap:soap-fault-detail fault)))
     (is (string= "Detail"
-                 (let ((tag (cl-xml:xml-node-tag (cl-xml:soap-fault-detail fault))))
+                 (let ((tag (cl-xml:xml-node-tag (cl-xml.soap:soap-fault-detail fault))))
                    (if (cl-xml:xml-qname-p tag)
                        (cl-xml:xml-qname-local-name tag)
                        tag))))))
 
 (test parse-soap-1.2-fault-lang
   "SOAP 1.2 fault lang is extracted from Reason/Text xml:lang attribute."
-  (let* ((fault (cl-xml:soap-body-fault
-                 (cl-xml:soap-envelope-body
-                  (cl-xml:parse-soap +soap-1.2-fault+)))))
-    (is (string= "en" (cl-xml:soap-fault-lang fault)))))
+  (let* ((fault (cl-xml.soap:soap-body-fault
+                 (cl-xml.soap:soap-envelope-body
+                  (cl-xml.soap:parse-soap +soap-1.2-fault+)))))
+    (is (string= "en" (cl-xml.soap:soap-fault-lang fault)))))
 
 ;;; parse-soap — error cases
 
 (test parse-soap-not-envelope-error
   "parse-soap signals soap-error when root element is not Envelope."
-  (signals cl-xml:soap-error
-    (cl-xml:parse-soap
+  (signals cl-xml.soap:soap-error
+    (cl-xml.soap:parse-soap
      "<root xmlns=\"http://schemas.xmlsoap.org/soap/envelope/\" />")))
 
 (test parse-soap-unknown-namespace-error
   "parse-soap signals soap-error for an unknown SOAP namespace URI."
-  (signals cl-xml:soap-error
-    (cl-xml:parse-soap
+  (signals cl-xml.soap:soap-error
+    (cl-xml.soap:parse-soap
      "<s:Envelope xmlns:s=\"http://example.com/soap\"><s:Body /></s:Envelope>")))
 
 (test parse-soap-no-body-error
   "parse-soap signals soap-error when the Envelope has no Body."
-  (signals cl-xml:soap-error
-    (cl-xml:parse-soap
+  (signals cl-xml.soap:soap-error
+    (cl-xml.soap:parse-soap
      "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\" />")))
 
 ;;; serialize-soap
 
 (defun parse-soap-from-string (str)
   "Round-trip helper: parse STR as a SOAP envelope."
-  (cl-xml:parse-soap str))
+  (cl-xml.soap:parse-soap str))
 
 (test serialize-soap-returns-string
   "serialize-soap returns a non-empty string by default."
-  (let* ((body (cl-xml:make-soap-body :payload '()))
-         (env  (cl-xml:make-soap-envelope :version :1.1 :body body))
-         (xml  (cl-xml:serialize-soap env)))
+  (let* ((body (cl-xml.soap:make-soap-body :payload '()))
+         (env  (cl-xml.soap:make-soap-envelope :version :1.1 :body body))
+         (xml  (cl-xml.soap:serialize-soap env)))
     (is (stringp xml))
     (is (plusp (length xml)))))
 
 (test serialize-soap-contains-envelope-tag
   "The serialized string contains soap:Envelope."
-  (let* ((body (cl-xml:make-soap-body :payload '()))
-         (env  (cl-xml:make-soap-envelope :version :1.1 :body body))
-         (xml  (cl-xml:serialize-soap env)))
+  (let* ((body (cl-xml.soap:make-soap-body :payload '()))
+         (env  (cl-xml.soap:make-soap-envelope :version :1.1 :body body))
+         (xml  (cl-xml.soap:serialize-soap env)))
     (is (search "Envelope" xml))))
 
 (test serialize-soap-1.1-namespace-present
   "Serialized SOAP 1.1 output contains the SOAP 1.1 namespace URI."
-  (let* ((body (cl-xml:make-soap-body :payload '()))
-         (env  (cl-xml:make-soap-envelope :version :1.1 :body body))
-         (xml  (cl-xml:serialize-soap env)))
+  (let* ((body (cl-xml.soap:make-soap-body :payload '()))
+         (env  (cl-xml.soap:make-soap-envelope :version :1.1 :body body))
+         (xml  (cl-xml.soap:serialize-soap env)))
     (is (search "schemas.xmlsoap.org/soap/envelope/" xml))))
 
 (test serialize-soap-1.2-namespace-present
   "Serialized SOAP 1.2 output contains the SOAP 1.2 namespace URI."
-  (let* ((body (cl-xml:make-soap-body :payload '()))
-         (env  (cl-xml:make-soap-envelope :version :1.2 :body body))
-         (xml  (cl-xml:serialize-soap env)))
+  (let* ((body (cl-xml.soap:make-soap-body :payload '()))
+         (env  (cl-xml.soap:make-soap-envelope :version :1.2 :body body))
+         (xml  (cl-xml.soap:serialize-soap env)))
     (is (search "w3.org/2003/05/soap-envelope" xml))))
 
 (test serialize-soap-to-stream
   "serialize-soap writes to a supplied stream and returns nil."
-  (let* ((body   (cl-xml:make-soap-body :payload '()))
-         (env    (cl-xml:make-soap-envelope :version :1.1 :body body))
+  (let* ((body   (cl-xml.soap:make-soap-body :payload '()))
+         (env    (cl-xml.soap:make-soap-envelope :version :1.1 :body body))
          result)
     (with-output-to-string (s)
-      (setf result (cl-xml:serialize-soap env :stream s)))
+      (setf result (cl-xml.soap:serialize-soap env :stream s)))
     (is (null result))))
 
 (test serialize-soap-roundtrip-1.1
   "Serializing and re-parsing a SOAP 1.1 envelope preserves version and body."
-  (let* ((env (cl-xml:parse-soap +soap-1.1-minimal+))
-         (xml (cl-xml:serialize-soap env))
-         (env2 (cl-xml:parse-soap xml)))
-    (is (eq :1.1 (cl-xml:soap-envelope-version env2)))
-    (is (= 1 (length (cl-xml:soap-body-payload
-                      (cl-xml:soap-envelope-body env2)))))))
+  (let* ((env (cl-xml.soap:parse-soap +soap-1.1-minimal+))
+         (xml (cl-xml.soap:serialize-soap env))
+         (env2 (cl-xml.soap:parse-soap xml)))
+    (is (eq :1.1 (cl-xml.soap:soap-envelope-version env2)))
+    (is (= 1 (length (cl-xml.soap:soap-body-payload
+                      (cl-xml.soap:soap-envelope-body env2)))))))
 
 (test serialize-soap-roundtrip-1.2
   "Serializing and re-parsing a SOAP 1.2 envelope preserves version."
-  (let* ((env  (cl-xml:parse-soap +soap-1.2-minimal+))
-         (xml  (cl-xml:serialize-soap env))
-         (env2 (cl-xml:parse-soap xml)))
-    (is (eq :1.2 (cl-xml:soap-envelope-version env2)))))
+  (let* ((env  (cl-xml.soap:parse-soap +soap-1.2-minimal+))
+         (xml  (cl-xml.soap:serialize-soap env))
+         (env2 (cl-xml.soap:parse-soap xml)))
+    (is (eq :1.2 (cl-xml.soap:soap-envelope-version env2)))))
 
 (test serialize-soap-roundtrip-header
   "Serializing and re-parsing preserves the header block count."
-  (let* ((env  (cl-xml:parse-soap +soap-1.1-with-header+))
-         (xml  (cl-xml:serialize-soap env))
-         (env2 (cl-xml:parse-soap xml))
-         (hdr  (cl-xml:soap-envelope-header env2)))
-    (is (cl-xml:soap-header-p hdr))
-    (is (= 1 (length (cl-xml:soap-header-entries hdr))))))
+  (let* ((env  (cl-xml.soap:parse-soap +soap-1.1-with-header+))
+         (xml  (cl-xml.soap:serialize-soap env))
+         (env2 (cl-xml.soap:parse-soap xml))
+         (hdr  (cl-xml.soap:soap-envelope-header env2)))
+    (is (cl-xml.soap:soap-header-p hdr))
+    (is (= 1 (length (cl-xml.soap:soap-header-entries hdr))))))
 
 (test serialize-soap-1.1-fault-roundtrip
   "Serializing and re-parsing a SOAP 1.1 fault preserves code and string."
-  (let* ((fault-in (cl-xml:make-soap-fault
+  (let* ((fault-in (cl-xml.soap:make-soap-fault
                     :code "soap:Server" :string "Internal error"))
-         (body     (cl-xml:make-soap-body :fault fault-in))
-         (env      (cl-xml:make-soap-envelope :version :1.1 :body body))
-         (xml      (cl-xml:serialize-soap env))
-         (env2     (cl-xml:parse-soap xml))
-         (fault    (cl-xml:soap-body-fault (cl-xml:soap-envelope-body env2))))
-    (is (cl-xml:soap-fault-p fault))
-    (is (string= "soap:Server"    (cl-xml:soap-fault-code fault)))
-    (is (string= "Internal error" (cl-xml:soap-fault-string fault)))))
+         (body     (cl-xml.soap:make-soap-body :fault fault-in))
+         (env      (cl-xml.soap:make-soap-envelope :version :1.1 :body body))
+         (xml      (cl-xml.soap:serialize-soap env))
+         (env2     (cl-xml.soap:parse-soap xml))
+         (fault    (cl-xml.soap:soap-body-fault (cl-xml.soap:soap-envelope-body env2))))
+    (is (cl-xml.soap:soap-fault-p fault))
+    (is (string= "soap:Server"    (cl-xml.soap:soap-fault-code fault)))
+    (is (string= "Internal error" (cl-xml.soap:soap-fault-string fault)))))
 
 (test serialize-soap-1.2-fault-roundtrip
   "Serializing and re-parsing a SOAP 1.2 fault preserves code and string."
-  (let* ((fault-in (cl-xml:make-soap-fault
+  (let* ((fault-in (cl-xml.soap:make-soap-fault
                     :code "env:Receiver" :string "Processing failed"))
-         (body     (cl-xml:make-soap-body :fault fault-in))
-         (env      (cl-xml:make-soap-envelope :version :1.2 :body body))
-         (xml      (cl-xml:serialize-soap env))
-         (env2     (cl-xml:parse-soap xml))
-         (fault    (cl-xml:soap-body-fault (cl-xml:soap-envelope-body env2))))
-    (is (cl-xml:soap-fault-p fault))
-    (is (string= "env:Receiver"     (cl-xml:soap-fault-code fault)))
-    (is (string= "Processing failed" (cl-xml:soap-fault-string fault)))))
+         (body     (cl-xml.soap:make-soap-body :fault fault-in))
+         (env      (cl-xml.soap:make-soap-envelope :version :1.2 :body body))
+         (xml      (cl-xml.soap:serialize-soap env))
+         (env2     (cl-xml.soap:parse-soap xml))
+         (fault    (cl-xml.soap:soap-body-fault (cl-xml.soap:soap-envelope-body env2))))
+    (is (cl-xml.soap:soap-fault-p fault))
+    (is (string= "env:Receiver"     (cl-xml.soap:soap-fault-code fault)))
+    (is (string= "Processing failed" (cl-xml.soap:soap-fault-string fault)))))
 
 ;;; soap-make-envelope
 
 (test soap-make-envelope-basic
   "soap-make-envelope wraps body XML in a SOAP 1.1 envelope."
-  (let* ((env (cl-xml:soap-make-envelope
+  (let* ((env (cl-xml.soap:soap-make-envelope
                "<m:GetUser xmlns:m=\"http://example.com/\"><m:id>1</m:id></m:GetUser>"))
-         (body (cl-xml:soap-envelope-body env)))
-    (is (cl-xml:soap-envelope-p env))
-    (is (eq :1.1 (cl-xml:soap-envelope-version env)))
-    (is (null (cl-xml:soap-envelope-header env)))
-    (is (= 1 (length (cl-xml:soap-body-payload body))))
+         (body (cl-xml.soap:soap-envelope-body env)))
+    (is (cl-xml.soap:soap-envelope-p env))
+    (is (eq :1.1 (cl-xml.soap:soap-envelope-version env)))
+    (is (null (cl-xml.soap:soap-envelope-header env)))
+    (is (= 1 (length (cl-xml.soap:soap-body-payload body))))
     (is (string= "GetUser"
                  (cl-xml:xml-qname-local-name
                   (cl-xml:xml-node-tag
-                   (first (cl-xml:soap-body-payload body))))))))
+                   (first (cl-xml.soap:soap-body-payload body))))))))
 
 (test soap-make-envelope-version-1.2
   "soap-make-envelope respects the :version :1.2 keyword argument."
-  (let ((env (cl-xml:soap-make-envelope
+  (let ((env (cl-xml.soap:soap-make-envelope
               "<ping />" :version :1.2)))
-    (is (eq :1.2 (cl-xml:soap-envelope-version env)))))
+    (is (eq :1.2 (cl-xml.soap:soap-envelope-version env)))))
 
 (test soap-make-envelope-with-header
   "soap-make-envelope with :header-xml adds header entries."
-  (let* ((env (cl-xml:soap-make-envelope
+  (let* ((env (cl-xml.soap:soap-make-envelope
                "<ping />"
                :header-xml "<auth><token>xyz</token></auth>"))
-         (hdr (cl-xml:soap-envelope-header env)))
-    (is (cl-xml:soap-header-p hdr))
-    (is (= 1 (length (cl-xml:soap-header-entries hdr))))
-    (let ((tag (cl-xml:xml-node-tag (first (cl-xml:soap-header-entries hdr)))))
+         (hdr (cl-xml.soap:soap-envelope-header env)))
+    (is (cl-xml.soap:soap-header-p hdr))
+    (is (= 1 (length (cl-xml.soap:soap-header-entries hdr))))
+    (let ((tag (cl-xml:xml-node-tag (first (cl-xml.soap:soap-header-entries hdr)))))
       (is (string= "auth"
                    (if (cl-xml:xml-qname-p tag)
                        (cl-xml:xml-qname-local-name tag)
@@ -2157,19 +2157,19 @@
 
 (test soap-make-envelope-serialize-roundtrip
   "An envelope built with soap-make-envelope survives a serialize/parse round-trip."
-  (let* ((env  (cl-xml:soap-make-envelope
+  (let* ((env  (cl-xml.soap:soap-make-envelope
                 "<m:Op xmlns:m=\"http://example.com/\" />" :version :1.1))
-         (xml  (cl-xml:serialize-soap env))
-         (env2 (cl-xml:parse-soap xml)))
-    (is (eq :1.1 (cl-xml:soap-envelope-version env2)))
-    (is (= 1 (length (cl-xml:soap-body-payload
-                      (cl-xml:soap-envelope-body env2)))))))
+         (xml  (cl-xml.soap:serialize-soap env))
+         (env2 (cl-xml.soap:parse-soap xml)))
+    (is (eq :1.1 (cl-xml.soap:soap-envelope-version env2)))
+    (is (= 1 (length (cl-xml.soap:soap-body-payload
+                      (cl-xml.soap:soap-envelope-body env2)))))))
 
 (test soap-error-condition
   "soap-error condition reports message correctly."
-  (let ((err (make-condition 'cl-xml:soap-error :message "test error")))
-    (is (string= "test error" (cl-xml:soap-error-message err)))
-    (is (null (cl-xml:soap-error-path err)))
+  (let ((err (make-condition 'cl-xml.soap:soap-error :message "test error")))
+    (is (string= "test error" (cl-xml.soap:soap-error-message err)))
+    (is (null (cl-xml.soap:soap-error-path err)))
     (is (search "test error" (format nil "~a" err)))))
 
 
@@ -2203,92 +2203,92 @@
 (test wsdl-namespace-constant
   "The WSDL 2.0 namespace URI constant has the correct value."
   (is (string= "http://www.w3.org/ns/wsdl"
-               cl-xml:+wsdl-2.0-namespace+)))
+               cl-xml.wsdl:+wsdl-2.0-namespace+)))
 
 (test parse-wsdl-returns-description
   "parse-wsdl returns a wsdl-description struct."
-  (let ((desc (cl-xml:parse-wsdl +simple-wsdl+)))
-    (is (cl-xml:wsdl-description-p desc))))
+  (let ((desc (cl-xml.wsdl:parse-wsdl +simple-wsdl+)))
+    (is (cl-xml.wsdl:wsdl-description-p desc))))
 
 (test parse-wsdl-target-namespace
   "parse-wsdl captures the targetNamespace attribute."
-  (let ((desc (cl-xml:parse-wsdl +simple-wsdl+)))
+  (let ((desc (cl-xml.wsdl:parse-wsdl +simple-wsdl+)))
     (is (string= "http://example.com/hello"
-                 (cl-xml:wsdl-description-target-namespace desc)))))
+                 (cl-xml.wsdl:wsdl-description-target-namespace desc)))))
 
 (test parse-wsdl-interface-count
   "parse-wsdl populates the interfaces list."
-  (let ((desc (cl-xml:parse-wsdl +simple-wsdl+)))
-    (is (= 1 (length (cl-xml:wsdl-description-interfaces desc))))))
+  (let ((desc (cl-xml.wsdl:parse-wsdl +simple-wsdl+)))
+    (is (= 1 (length (cl-xml.wsdl:wsdl-description-interfaces desc))))))
 
 (test parse-wsdl-interface-name
   "parse-wsdl captures the interface name."
-  (let* ((desc  (cl-xml:parse-wsdl +simple-wsdl+))
-         (iface (first (cl-xml:wsdl-description-interfaces desc))))
-    (is (cl-xml:wsdl-interface-p iface))
-    (is (string= "HelloInterface" (cl-xml:wsdl-interface-name iface)))))
+  (let* ((desc  (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (iface (first (cl-xml.wsdl:wsdl-description-interfaces desc))))
+    (is (cl-xml.wsdl:wsdl-interface-p iface))
+    (is (string= "HelloInterface" (cl-xml.wsdl:wsdl-interface-name iface)))))
 
 (test parse-wsdl-interface-operation
   "parse-wsdl parses wsdl:operation inside wsdl:interface."
-  (let* ((desc  (cl-xml:parse-wsdl +simple-wsdl+))
-         (iface (first (cl-xml:wsdl-description-interfaces desc)))
-         (op    (first (cl-xml:wsdl-interface-operations iface))))
-    (is (cl-xml:wsdl-interface-operation-p op))
-    (is (string= "sayHello" (cl-xml:wsdl-interface-operation-name op)))
+  (let* ((desc  (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (iface (first (cl-xml.wsdl:wsdl-description-interfaces desc)))
+         (op    (first (cl-xml.wsdl:wsdl-interface-operations iface))))
+    (is (cl-xml.wsdl:wsdl-interface-operation-p op))
+    (is (string= "sayHello" (cl-xml.wsdl:wsdl-interface-operation-name op)))
     (is (string= "http://www.w3.org/ns/wsdl/in-out"
-                 (cl-xml:wsdl-interface-operation-pattern op)))))
+                 (cl-xml.wsdl:wsdl-interface-operation-pattern op)))))
 
 (test parse-wsdl-operation-input-output
   "parse-wsdl records wsdl:input and wsdl:output as wsdl-message-ref structs."
-  (let* ((desc  (cl-xml:parse-wsdl +simple-wsdl+))
-         (op    (first (cl-xml:wsdl-interface-operations
-                        (first (cl-xml:wsdl-description-interfaces desc)))))
-         (in    (first (cl-xml:wsdl-interface-operation-inputs op)))
-         (out   (first (cl-xml:wsdl-interface-operation-outputs op))))
-    (is (cl-xml:wsdl-message-ref-p in))
-    (is (string= "tns:SayHelloRequest" (cl-xml:wsdl-message-ref-element in)))
-    (is (cl-xml:wsdl-message-ref-p out))
-    (is (string= "tns:SayHelloResponse" (cl-xml:wsdl-message-ref-element out)))))
+  (let* ((desc  (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (op    (first (cl-xml.wsdl:wsdl-interface-operations
+                        (first (cl-xml.wsdl:wsdl-description-interfaces desc)))))
+         (in    (first (cl-xml.wsdl:wsdl-interface-operation-inputs op)))
+         (out   (first (cl-xml.wsdl:wsdl-interface-operation-outputs op))))
+    (is (cl-xml.wsdl:wsdl-message-ref-p in))
+    (is (string= "tns:SayHelloRequest" (cl-xml.wsdl:wsdl-message-ref-element in)))
+    (is (cl-xml.wsdl:wsdl-message-ref-p out))
+    (is (string= "tns:SayHelloResponse" (cl-xml.wsdl:wsdl-message-ref-element out)))))
 
 (test parse-wsdl-binding
   "parse-wsdl parses wsdl:binding with name, interface, and type."
-  (let* ((desc    (cl-xml:parse-wsdl +simple-wsdl+))
-         (binding (first (cl-xml:wsdl-description-bindings desc))))
-    (is (cl-xml:wsdl-binding-p binding))
-    (is (string= "HelloBinding"  (cl-xml:wsdl-binding-name binding)))
-    (is (string= "tns:HelloInterface" (cl-xml:wsdl-binding-interface binding)))
+  (let* ((desc    (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (binding (first (cl-xml.wsdl:wsdl-description-bindings desc))))
+    (is (cl-xml.wsdl:wsdl-binding-p binding))
+    (is (string= "HelloBinding"  (cl-xml.wsdl:wsdl-binding-name binding)))
+    (is (string= "tns:HelloInterface" (cl-xml.wsdl:wsdl-binding-interface binding)))
     (is (string= "http://www.w3.org/ns/wsdl/soap"
-                 (cl-xml:wsdl-binding-type binding)))))
+                 (cl-xml.wsdl:wsdl-binding-type binding)))))
 
 (test parse-wsdl-binding-operation
   "parse-wsdl parses wsdl:operation inside wsdl:binding."
-  (let* ((desc    (cl-xml:parse-wsdl +simple-wsdl+))
-         (binding (first (cl-xml:wsdl-description-bindings desc)))
-         (bop     (first (cl-xml:wsdl-binding-operations binding))))
-    (is (cl-xml:wsdl-binding-operation-p bop))
-    (is (string= "tns:sayHello" (cl-xml:wsdl-binding-operation-ref bop)))))
+  (let* ((desc    (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (binding (first (cl-xml.wsdl:wsdl-description-bindings desc)))
+         (bop     (first (cl-xml.wsdl:wsdl-binding-operations binding))))
+    (is (cl-xml.wsdl:wsdl-binding-operation-p bop))
+    (is (string= "tns:sayHello" (cl-xml.wsdl:wsdl-binding-operation-ref bop)))))
 
 (test parse-wsdl-service
   "parse-wsdl parses wsdl:service."
-  (let* ((desc    (cl-xml:parse-wsdl +simple-wsdl+))
-         (service (first (cl-xml:wsdl-description-services desc))))
-    (is (cl-xml:wsdl-service-p service))
-    (is (string= "HelloService"      (cl-xml:wsdl-service-name service)))
-    (is (string= "tns:HelloInterface" (cl-xml:wsdl-service-interface service)))))
+  (let* ((desc    (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (service (first (cl-xml.wsdl:wsdl-description-services desc))))
+    (is (cl-xml.wsdl:wsdl-service-p service))
+    (is (string= "HelloService"      (cl-xml.wsdl:wsdl-service-name service)))
+    (is (string= "tns:HelloInterface" (cl-xml.wsdl:wsdl-service-interface service)))))
 
 (test parse-wsdl-endpoint
   "parse-wsdl parses wsdl:endpoint inside wsdl:service."
-  (let* ((desc    (cl-xml:parse-wsdl +simple-wsdl+))
-         (service (first (cl-xml:wsdl-description-services desc)))
-         (ep      (first (cl-xml:wsdl-service-endpoints service))))
-    (is (cl-xml:wsdl-endpoint-p ep))
-    (is (string= "HelloEndpoint"    (cl-xml:wsdl-endpoint-name ep)))
-    (is (string= "tns:HelloBinding" (cl-xml:wsdl-endpoint-binding ep)))
-    (is (string= "http://example.com/hello" (cl-xml:wsdl-endpoint-address ep)))))
+  (let* ((desc    (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (service (first (cl-xml.wsdl:wsdl-description-services desc)))
+         (ep      (first (cl-xml.wsdl:wsdl-service-endpoints service))))
+    (is (cl-xml.wsdl:wsdl-endpoint-p ep))
+    (is (string= "HelloEndpoint"    (cl-xml.wsdl:wsdl-endpoint-name ep)))
+    (is (string= "tns:HelloBinding" (cl-xml.wsdl:wsdl-endpoint-binding ep)))
+    (is (string= "http://example.com/hello" (cl-xml.wsdl:wsdl-endpoint-address ep)))))
 
 (test parse-wsdl-interface-fault
   "parse-wsdl parses wsdl:fault inside wsdl:interface."
-  (let* ((desc (cl-xml:parse-wsdl
+  (let* ((desc (cl-xml.wsdl:parse-wsdl
                 "<?xml version=\"1.0\"?>
 <wsdl:description xmlns:wsdl=\"http://www.w3.org/ns/wsdl\"
                   targetNamespace=\"http://example.com/\">
@@ -2296,15 +2296,15 @@
     <wsdl:fault name=\"NotFound\" element=\"tns:NotFoundFault\" />
   </wsdl:interface>
 </wsdl:description>"))
-         (iface (first (cl-xml:wsdl-description-interfaces desc)))
-         (fault (first (cl-xml:wsdl-interface-faults iface))))
-    (is (cl-xml:wsdl-interface-fault-p fault))
-    (is (string= "NotFound" (cl-xml:wsdl-interface-fault-name fault)))
-    (is (string= "tns:NotFoundFault" (cl-xml:wsdl-interface-fault-element fault)))))
+         (iface (first (cl-xml.wsdl:wsdl-description-interfaces desc)))
+         (fault (first (cl-xml.wsdl:wsdl-interface-faults iface))))
+    (is (cl-xml.wsdl:wsdl-interface-fault-p fault))
+    (is (string= "NotFound" (cl-xml.wsdl:wsdl-interface-fault-name fault)))
+    (is (string= "tns:NotFoundFault" (cl-xml.wsdl:wsdl-interface-fault-element fault)))))
 
 (test parse-wsdl-infault-outfault
   "parse-wsdl parses wsdl:infault and wsdl:outfault inside wsdl:operation."
-  (let* ((desc (cl-xml:parse-wsdl
+  (let* ((desc (cl-xml.wsdl:parse-wsdl
                 "<?xml version=\"1.0\"?>
 <wsdl:description xmlns:wsdl=\"http://www.w3.org/ns/wsdl\"
                   targetNamespace=\"http://example.com/\">
@@ -2318,56 +2318,56 @@
     </wsdl:operation>
   </wsdl:interface>
 </wsdl:description>"))
-         (op (first (cl-xml:wsdl-interface-operations
-                     (first (cl-xml:wsdl-description-interfaces desc))))))
-    (let ((inf  (first (cl-xml:wsdl-interface-operation-in-faults op)))
-          (outf (first (cl-xml:wsdl-interface-operation-out-faults op))))
-      (is (cl-xml:wsdl-fault-ref-p inf))
-      (is (string= "tns:InputFault"  (cl-xml:wsdl-fault-ref-ref inf)))
-      (is (cl-xml:wsdl-fault-ref-p outf))
-      (is (string= "tns:OutputFault" (cl-xml:wsdl-fault-ref-ref outf))))))
+         (op (first (cl-xml.wsdl:wsdl-interface-operations
+                     (first (cl-xml.wsdl:wsdl-description-interfaces desc))))))
+    (let ((inf  (first (cl-xml.wsdl:wsdl-interface-operation-in-faults op)))
+          (outf (first (cl-xml.wsdl:wsdl-interface-operation-out-faults op))))
+      (is (cl-xml.wsdl:wsdl-fault-ref-p inf))
+      (is (string= "tns:InputFault"  (cl-xml.wsdl:wsdl-fault-ref-ref inf)))
+      (is (cl-xml.wsdl:wsdl-fault-ref-p outf))
+      (is (string= "tns:OutputFault" (cl-xml.wsdl:wsdl-fault-ref-ref outf))))))
 
 (test parse-wsdl-interface-extends
   "parse-wsdl captures the extends attribute as a list of names."
-  (let* ((desc (cl-xml:parse-wsdl
+  (let* ((desc (cl-xml.wsdl:parse-wsdl
                 "<?xml version=\"1.0\"?>
 <wsdl:description xmlns:wsdl=\"http://www.w3.org/ns/wsdl\"
                   targetNamespace=\"http://example.com/\">
   <wsdl:interface name=\"Child\" extends=\"tns:Base1 tns:Base2\" />
 </wsdl:description>"))
-         (iface (first (cl-xml:wsdl-description-interfaces desc))))
+         (iface (first (cl-xml.wsdl:wsdl-description-interfaces desc))))
     (is (equal '("tns:Base1" "tns:Base2")
-               (cl-xml:wsdl-interface-extends iface)))))
+               (cl-xml.wsdl:wsdl-interface-extends iface)))))
 
 (test parse-wsdl-import
   "parse-wsdl captures wsdl:import elements."
-  (let* ((desc (cl-xml:parse-wsdl
+  (let* ((desc (cl-xml.wsdl:parse-wsdl
                 "<?xml version=\"1.0\"?>
 <wsdl:description xmlns:wsdl=\"http://www.w3.org/ns/wsdl\"
                   targetNamespace=\"http://example.com/\">
   <wsdl:import namespace=\"http://other.example.com/\"
                location=\"other.wsdl\" />
 </wsdl:description>"))
-         (imp (first (cl-xml:wsdl-description-imports desc))))
-    (is (cl-xml:wsdl-import-p imp))
-    (is (string= "http://other.example.com/" (cl-xml:wsdl-import-namespace imp)))
-    (is (string= "other.wsdl" (cl-xml:wsdl-import-location imp)))))
+         (imp (first (cl-xml.wsdl:wsdl-description-imports desc))))
+    (is (cl-xml.wsdl:wsdl-import-p imp))
+    (is (string= "http://other.example.com/" (cl-xml.wsdl:wsdl-import-namespace imp)))
+    (is (string= "other.wsdl" (cl-xml.wsdl:wsdl-import-location imp)))))
 
 (test parse-wsdl-include
   "parse-wsdl captures wsdl:include elements."
-  (let* ((desc (cl-xml:parse-wsdl
+  (let* ((desc (cl-xml.wsdl:parse-wsdl
                 "<?xml version=\"1.0\"?>
 <wsdl:description xmlns:wsdl=\"http://www.w3.org/ns/wsdl\"
                   targetNamespace=\"http://example.com/\">
   <wsdl:include location=\"common.wsdl\" />
 </wsdl:description>"))
-         (inc (first (cl-xml:wsdl-description-includes desc))))
-    (is (cl-xml:wsdl-include-p inc))
-    (is (string= "common.wsdl" (cl-xml:wsdl-include-location inc)))))
+         (inc (first (cl-xml.wsdl:wsdl-description-includes desc))))
+    (is (cl-xml.wsdl:wsdl-include-p inc))
+    (is (string= "common.wsdl" (cl-xml.wsdl:wsdl-include-location inc)))))
 
 (test parse-wsdl-types-preserved
   "parse-wsdl stores type children as xml-nodes."
-  (let* ((desc (cl-xml:parse-wsdl
+  (let* ((desc (cl-xml.wsdl:parse-wsdl
                 "<?xml version=\"1.0\"?>
 <wsdl:description xmlns:wsdl=\"http://www.w3.org/ns/wsdl\"
                   xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"
@@ -2378,12 +2378,12 @@
     </xs:schema>
   </wsdl:types>
 </wsdl:description>")))
-    (is (= 1 (length (cl-xml:wsdl-description-types desc))))
-    (is (cl-xml:xml-node-p (first (cl-xml:wsdl-description-types desc))))))
+    (is (= 1 (length (cl-xml.wsdl:wsdl-description-types desc))))
+    (is (cl-xml:xml-node-p (first (cl-xml.wsdl:wsdl-description-types desc))))))
 
 (test parse-wsdl-binding-fault
   "parse-wsdl parses wsdl:fault inside wsdl:binding."
-  (let* ((desc (cl-xml:parse-wsdl
+  (let* ((desc (cl-xml.wsdl:parse-wsdl
                 "<?xml version=\"1.0\"?>
 <wsdl:description xmlns:wsdl=\"http://www.w3.org/ns/wsdl\"
                   targetNamespace=\"http://example.com/\">
@@ -2392,153 +2392,153 @@
     <wsdl:fault ref=\"tns:NotFound\" code=\"soap:Sender\" />
   </wsdl:binding>
 </wsdl:description>"))
-         (bf (first (cl-xml:wsdl-binding-faults
-                     (first (cl-xml:wsdl-description-bindings desc))))))
-    (is (cl-xml:wsdl-binding-fault-p bf))
-    (is (string= "tns:NotFound" (cl-xml:wsdl-binding-fault-ref bf)))
-    (is (string= "soap:Sender"  (cl-xml:wsdl-binding-fault-code bf)))))
+         (bf (first (cl-xml.wsdl:wsdl-binding-faults
+                     (first (cl-xml.wsdl:wsdl-description-bindings desc))))))
+    (is (cl-xml.wsdl:wsdl-binding-fault-p bf))
+    (is (string= "tns:NotFound" (cl-xml.wsdl:wsdl-binding-fault-ref bf)))
+    (is (string= "soap:Sender"  (cl-xml.wsdl:wsdl-binding-fault-code bf)))))
 
 (test parse-wsdl-wrong-root-signals-error
   "parse-wsdl signals wsdl-error when the root element is not wsdl:description."
-  (signals cl-xml:wsdl-error
-    (cl-xml:parse-wsdl
+  (signals cl-xml.wsdl:wsdl-error
+    (cl-xml.wsdl:parse-wsdl
      "<?xml version=\"1.0\"?>
 <wsdl:definitions xmlns:wsdl=\"http://www.w3.org/ns/wsdl\" />")))
 
 (test parse-wsdl-wrong-namespace-signals-error
   "parse-wsdl signals wsdl-error when the namespace URI is not WSDL 2.0."
-  (signals cl-xml:wsdl-error
-    (cl-xml:parse-wsdl
+  (signals cl-xml.wsdl:wsdl-error
+    (cl-xml.wsdl:parse-wsdl
      "<?xml version=\"1.0\"?>
 <wsdl:description xmlns:wsdl=\"http://schemas.xmlsoap.org/wsdl/\" />")))
 
 (test serialize-wsdl-returns-string
   "serialize-wsdl with no :stream argument returns a string."
-  (let* ((desc (cl-xml:parse-wsdl +simple-wsdl+))
-         (out  (cl-xml:serialize-wsdl desc)))
+  (let* ((desc (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (out  (cl-xml.wsdl:serialize-wsdl desc)))
     (is (stringp out))))
 
 (test serialize-wsdl-contains-declaration
   "serialize-wsdl output starts with an XML declaration."
-  (let* ((desc (cl-xml:parse-wsdl +simple-wsdl+))
-         (out  (cl-xml:serialize-wsdl desc)))
+  (let* ((desc (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (out  (cl-xml.wsdl:serialize-wsdl desc)))
     (is (search "<?xml" out))))
 
 (test serialize-wsdl-contains-wsdl-namespace
   "serialize-wsdl output declares the WSDL 2.0 namespace."
-  (let* ((desc (cl-xml:parse-wsdl +simple-wsdl+))
-         (out  (cl-xml:serialize-wsdl desc)))
+  (let* ((desc (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (out  (cl-xml.wsdl:serialize-wsdl desc)))
     (is (search "http://www.w3.org/ns/wsdl" out))))
 
 (test serialize-wsdl-to-stream
   "serialize-wsdl writes to a supplied output stream and returns NIL."
-  (let* ((desc (cl-xml:parse-wsdl +simple-wsdl+))
+  (let* ((desc (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
          (ret  nil))
     (with-output-to-string (s)
-      (setf ret (cl-xml:serialize-wsdl desc :stream s)))
+      (setf ret (cl-xml.wsdl:serialize-wsdl desc :stream s)))
     (is (null ret))))
 
 (test serialize-wsdl-roundtrip-interface
   "serialize-wsdl output can be re-parsed to recover interface data."
-  (let* ((desc1 (cl-xml:parse-wsdl +simple-wsdl+))
-         (xml   (cl-xml:serialize-wsdl desc1))
-         (desc2 (cl-xml:parse-wsdl xml)))
-    (is (= (length (cl-xml:wsdl-description-interfaces desc1))
-           (length (cl-xml:wsdl-description-interfaces desc2))))
-    (is (string= (cl-xml:wsdl-interface-name
-                  (first (cl-xml:wsdl-description-interfaces desc1)))
-                 (cl-xml:wsdl-interface-name
-                  (first (cl-xml:wsdl-description-interfaces desc2)))))))
+  (let* ((desc1 (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (xml   (cl-xml.wsdl:serialize-wsdl desc1))
+         (desc2 (cl-xml.wsdl:parse-wsdl xml)))
+    (is (= (length (cl-xml.wsdl:wsdl-description-interfaces desc1))
+           (length (cl-xml.wsdl:wsdl-description-interfaces desc2))))
+    (is (string= (cl-xml.wsdl:wsdl-interface-name
+                  (first (cl-xml.wsdl:wsdl-description-interfaces desc1)))
+                 (cl-xml.wsdl:wsdl-interface-name
+                  (first (cl-xml.wsdl:wsdl-description-interfaces desc2)))))))
 
 (test serialize-wsdl-roundtrip-binding
   "serialize-wsdl output can be re-parsed to recover binding data."
-  (let* ((desc1 (cl-xml:parse-wsdl +simple-wsdl+))
-         (xml   (cl-xml:serialize-wsdl desc1))
-         (desc2 (cl-xml:parse-wsdl xml)))
-    (is (= (length (cl-xml:wsdl-description-bindings desc1))
-           (length (cl-xml:wsdl-description-bindings desc2))))
-    (is (string= (cl-xml:wsdl-binding-name
-                  (first (cl-xml:wsdl-description-bindings desc1)))
-                 (cl-xml:wsdl-binding-name
-                  (first (cl-xml:wsdl-description-bindings desc2)))))))
+  (let* ((desc1 (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (xml   (cl-xml.wsdl:serialize-wsdl desc1))
+         (desc2 (cl-xml.wsdl:parse-wsdl xml)))
+    (is (= (length (cl-xml.wsdl:wsdl-description-bindings desc1))
+           (length (cl-xml.wsdl:wsdl-description-bindings desc2))))
+    (is (string= (cl-xml.wsdl:wsdl-binding-name
+                  (first (cl-xml.wsdl:wsdl-description-bindings desc1)))
+                 (cl-xml.wsdl:wsdl-binding-name
+                  (first (cl-xml.wsdl:wsdl-description-bindings desc2)))))))
 
 (test serialize-wsdl-roundtrip-service
   "serialize-wsdl output can be re-parsed to recover service and endpoint data."
-  (let* ((desc1 (cl-xml:parse-wsdl +simple-wsdl+))
-         (xml   (cl-xml:serialize-wsdl desc1))
-         (desc2 (cl-xml:parse-wsdl xml)))
-    (let ((svc1 (first (cl-xml:wsdl-description-services desc1)))
-          (svc2 (first (cl-xml:wsdl-description-services desc2))))
-      (is (string= (cl-xml:wsdl-service-name svc1)
-                   (cl-xml:wsdl-service-name svc2)))
-      (is (string= (cl-xml:wsdl-endpoint-address
-                    (first (cl-xml:wsdl-service-endpoints svc1)))
-                   (cl-xml:wsdl-endpoint-address
-                    (first (cl-xml:wsdl-service-endpoints svc2))))))))
+  (let* ((desc1 (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (xml   (cl-xml.wsdl:serialize-wsdl desc1))
+         (desc2 (cl-xml.wsdl:parse-wsdl xml)))
+    (let ((svc1 (first (cl-xml.wsdl:wsdl-description-services desc1)))
+          (svc2 (first (cl-xml.wsdl:wsdl-description-services desc2))))
+      (is (string= (cl-xml.wsdl:wsdl-service-name svc1)
+                   (cl-xml.wsdl:wsdl-service-name svc2)))
+      (is (string= (cl-xml.wsdl:wsdl-endpoint-address
+                    (first (cl-xml.wsdl:wsdl-service-endpoints svc1)))
+                   (cl-xml.wsdl:wsdl-endpoint-address
+                    (first (cl-xml.wsdl:wsdl-service-endpoints svc2))))))))
 
 (test wsdl-find-interface-found
   "wsdl-find-interface returns the matching interface struct."
-  (let* ((desc  (cl-xml:parse-wsdl +simple-wsdl+))
-         (iface (cl-xml:wsdl-find-interface desc "HelloInterface")))
-    (is (cl-xml:wsdl-interface-p iface))
-    (is (string= "HelloInterface" (cl-xml:wsdl-interface-name iface)))))
+  (let* ((desc  (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (iface (cl-xml.wsdl:wsdl-find-interface desc "HelloInterface")))
+    (is (cl-xml.wsdl:wsdl-interface-p iface))
+    (is (string= "HelloInterface" (cl-xml.wsdl:wsdl-interface-name iface)))))
 
 (test wsdl-find-interface-not-found
   "wsdl-find-interface returns NIL when the name does not exist."
-  (let ((desc (cl-xml:parse-wsdl +simple-wsdl+)))
-    (is (null (cl-xml:wsdl-find-interface desc "NoSuchInterface")))))
+  (let ((desc (cl-xml.wsdl:parse-wsdl +simple-wsdl+)))
+    (is (null (cl-xml.wsdl:wsdl-find-interface desc "NoSuchInterface")))))
 
 (test wsdl-find-binding-found
   "wsdl-find-binding returns the matching binding struct."
-  (let* ((desc    (cl-xml:parse-wsdl +simple-wsdl+))
-         (binding (cl-xml:wsdl-find-binding desc "HelloBinding")))
-    (is (cl-xml:wsdl-binding-p binding))
-    (is (string= "HelloBinding" (cl-xml:wsdl-binding-name binding)))))
+  (let* ((desc    (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (binding (cl-xml.wsdl:wsdl-find-binding desc "HelloBinding")))
+    (is (cl-xml.wsdl:wsdl-binding-p binding))
+    (is (string= "HelloBinding" (cl-xml.wsdl:wsdl-binding-name binding)))))
 
 (test wsdl-find-service-found
   "wsdl-find-service returns the matching service struct."
-  (let* ((desc    (cl-xml:parse-wsdl +simple-wsdl+))
-         (service (cl-xml:wsdl-find-service desc "HelloService")))
-    (is (cl-xml:wsdl-service-p service))
-    (is (string= "HelloService" (cl-xml:wsdl-service-name service)))))
+  (let* ((desc    (cl-xml.wsdl:parse-wsdl +simple-wsdl+))
+         (service (cl-xml.wsdl:wsdl-find-service desc "HelloService")))
+    (is (cl-xml.wsdl:wsdl-service-p service))
+    (is (string= "HelloService" (cl-xml.wsdl:wsdl-service-name service)))))
 
 (test wsdl-error-condition
   "wsdl-error condition reports message and path correctly."
-  (let ((err (make-condition 'cl-xml:wsdl-error
+  (let ((err (make-condition 'cl-xml.wsdl:wsdl-error
                              :message "bad WSDL"
                              :path "wsdl:description")))
-    (is (string= "bad WSDL" (cl-xml:wsdl-error-message err)))
-    (is (string= "wsdl:description" (cl-xml:wsdl-error-path err)))
+    (is (string= "bad WSDL" (cl-xml.wsdl:wsdl-error-message err)))
+    (is (string= "wsdl:description" (cl-xml.wsdl:wsdl-error-path err)))
     (is (search "bad WSDL" (format nil "~a" err)))))
 
 (test wsdl-error-condition-no-path
   "wsdl-error condition without a path omits the path in the message."
-  (let ((err (make-condition 'cl-xml:wsdl-error :message "test")))
-    (is (null (cl-xml:wsdl-error-path err)))
+  (let ((err (make-condition 'cl-xml.wsdl:wsdl-error :message "test")))
+    (is (null (cl-xml.wsdl:wsdl-error-path err)))
     (is (search "test" (format nil "~a" err)))))
 
 (test wsdl-description-struct
   "make-wsdl-description creates a struct with default empty slots."
-  (let ((d (cl-xml:make-wsdl-description)))
-    (is (cl-xml:wsdl-description-p d))
-    (is (null (cl-xml:wsdl-description-target-namespace d)))
-    (is (null (cl-xml:wsdl-description-imports d)))
-    (is (null (cl-xml:wsdl-description-interfaces d)))
-    (is (null (cl-xml:wsdl-description-bindings d)))
-    (is (null (cl-xml:wsdl-description-services d)))))
+  (let ((d (cl-xml.wsdl:make-wsdl-description)))
+    (is (cl-xml.wsdl:wsdl-description-p d))
+    (is (null (cl-xml.wsdl:wsdl-description-target-namespace d)))
+    (is (null (cl-xml.wsdl:wsdl-description-imports d)))
+    (is (null (cl-xml.wsdl:wsdl-description-interfaces d)))
+    (is (null (cl-xml.wsdl:wsdl-description-bindings d)))
+    (is (null (cl-xml.wsdl:wsdl-description-services d)))))
 
 (test parse-wsdl-no-target-namespace
   "parse-wsdl accepts a description without targetNamespace."
-  (let ((desc (cl-xml:parse-wsdl
+  (let ((desc (cl-xml.wsdl:parse-wsdl
                "<?xml version=\"1.0\"?>
 <wsdl:description xmlns:wsdl=\"http://www.w3.org/ns/wsdl\">
 </wsdl:description>")))
-    (is (cl-xml:wsdl-description-p desc))
-    (is (null (cl-xml:wsdl-description-target-namespace desc)))))
+    (is (cl-xml.wsdl:wsdl-description-p desc))
+    (is (null (cl-xml.wsdl:wsdl-description-target-namespace desc)))))
 
 (test parse-wsdl-multiple-interfaces
   "parse-wsdl collects all wsdl:interface children in order."
-  (let* ((desc (cl-xml:parse-wsdl
+  (let* ((desc (cl-xml.wsdl:parse-wsdl
                 "<?xml version=\"1.0\"?>
 <wsdl:description xmlns:wsdl=\"http://www.w3.org/ns/wsdl\"
                   targetNamespace=\"http://example.com/\">
@@ -2546,8 +2546,8 @@
   <wsdl:interface name=\"Beta\" />
   <wsdl:interface name=\"Gamma\" />
 </wsdl:description>"))
-         (ifaces (cl-xml:wsdl-description-interfaces desc)))
+         (ifaces (cl-xml.wsdl:wsdl-description-interfaces desc)))
     (is (= 3 (length ifaces)))
-    (is (string= "Alpha" (cl-xml:wsdl-interface-name (first  ifaces))))
-    (is (string= "Beta"  (cl-xml:wsdl-interface-name (second ifaces))))
-    (is (string= "Gamma" (cl-xml:wsdl-interface-name (third  ifaces))))))
+    (is (string= "Alpha" (cl-xml.wsdl:wsdl-interface-name (first  ifaces))))
+    (is (string= "Beta"  (cl-xml.wsdl:wsdl-interface-name (second ifaces))))
+    (is (string= "Gamma" (cl-xml.wsdl:wsdl-interface-name (third  ifaces))))))

@@ -1,4 +1,4 @@
-(in-package #:cl-xml)
+(in-package #:cl-xml.wsdl)
 
 ;;;; WSDL (Web Services Description Language) — 2.0 implementation
 ;;;;
