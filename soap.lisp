@@ -1,4 +1,4 @@
-(in-package #:cl-soap)
+(in-package #:io.github.cl-sdk.soap)
 
 ;;;; SOAP (Simple Object Access Protocol) — 1.1 and 1.2 implementation
 ;;;;

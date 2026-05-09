@@ -1,3 +1,3 @@
-(defpackage #:cl-wsdl.test
-  (:use #:cl #:fiveam #:cl-wsdl)
+(defpackage #:io.github.cl-sdk.wsdl.test
+  (:use #:cl #:fiveam #:io.github.cl-sdk.wsdl)
   (:export #:cl-wsdl-suite))

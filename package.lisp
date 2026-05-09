@@ -1,4 +1,4 @@
-(defpackage #:cl-xml
+(defpackage #:io.github.cl-sdk.xml
   (:use #:cl #:trivial-gray-streams)
   (:export
    ;; Document

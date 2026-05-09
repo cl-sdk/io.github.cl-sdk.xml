@@ -1,4 +1,4 @@
-(in-package #:cl-wsdl)
+(in-package #:io.github.cl-sdk.wsdl)
 
 ;;;; WSDL (Web Services Description Language) — 2.0 implementation
 ;;;;

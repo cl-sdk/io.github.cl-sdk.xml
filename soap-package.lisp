@@ -1,5 +1,5 @@
-(defpackage #:cl-soap
-  (:use #:cl #:cl-xml)
+(defpackage #:io.github.cl-sdk.soap
+  (:use #:cl #:io.github.cl-sdk.xml)
   (:export
    ;; SOAP namespace URI constants
    #:+soap-1.1-namespace+

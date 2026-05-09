@@ -1,4 +1,4 @@
-(in-package #:cl-xml)
+(in-package #:io.github.cl-sdk.xml)
 
 ;;; Comment parsing — XML 1.0 §2.5
 

@@ -1,4 +1,4 @@
-(in-package #:cl-xsd)
+(in-package #:io.github.cl-sdk.xsd)
 
 ;;;; XSD (XML Schema Definition) — subset implementation
 ;;;;

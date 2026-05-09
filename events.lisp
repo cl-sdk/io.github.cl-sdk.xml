@@ -1,4 +1,4 @@
-(in-package #:cl-xml)
+(in-package #:io.github.cl-sdk.xml)
 
 ;;; XML event types — the intermediate representation between the tokeniser
 ;;; and any downstream processor (SAX handler, validator, etc.).

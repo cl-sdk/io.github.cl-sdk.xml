@@ -1,5 +1,5 @@
-(defpackage #:cl-wsdl
-  (:use #:cl #:cl-xml)
+(defpackage #:io.github.cl-sdk.wsdl
+  (:use #:cl #:io.github.cl-sdk.xml)
   (:export
    ;; WSDL 2.0 namespace constant
    #:+wsdl-2.0-namespace+

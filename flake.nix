@@ -1,5 +1,5 @@
 {
-  description = "cl-xml";
+  description = "io.github.cl-sdk.xml";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.11";

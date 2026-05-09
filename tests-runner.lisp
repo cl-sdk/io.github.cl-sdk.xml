@@ -4,7 +4,7 @@
 
 (asdf:initialize-source-registry)
 
-(ql:quickload :cl-xml.test)
+(ql:quickload :io.github.cl-sdk.xml.test)
 
 (setf *debugger-hook*
       (lambda (c h)

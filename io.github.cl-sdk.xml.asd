@@ -1,4 +1,4 @@
-(defsystem #:cl-xml
+(defsystem #:io.github.cl-sdk.xml
   :description "A Common Lisp XML reader, writer, and custom parser."
   :long-description #.(uiop:read-file-string
                        (uiop:subpathname *load-pathname* "README.md"))

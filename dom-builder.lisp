@@ -1,4 +1,4 @@
-(in-package #:cl-xml)
+(in-package #:io.github.cl-sdk.xml)
 
 ;;; Default DOM-building SAX handler
 

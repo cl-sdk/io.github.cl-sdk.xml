@@ -1,13 +1,11 @@
-# cl-xml
-
-> **Note:** cl-xml is a temporary name as it is already taken on Quicklisp.
+# io.github.cl-sdk.xml
 
 A Common Lisp XML reader, writer, and custom parser.
 
 ## Installation
 
 ```lisp
-(ql:quickload "cl-xml")
+(ql:quickload "io.github.cl-sdk.xml")
 ```
 
 ## Parsing
@@ -22,7 +20,7 @@ A Common Lisp XML reader, writer, and custom parser.
 
 ```lisp
 (defvar *doc*
-  (cl-xml:parse-xml "<?xml version=\"1.0\"?>
+  (io.github.cl-sdk.xml:parse-xml "<?xml version=\"1.0\"?>
 <!-- preamble -->
 <root>
   <item id=\"1\">hello &amp; world</item>
@@ -39,18 +37,18 @@ Provide a subclass of `sax-handler` and pass an instance as `:handler` to
 methods are no-ops.
 
 ```lisp
-(defclass my-handler (cl-xml:sax-handler) ())
+(defclass my-handler (io.github.cl-sdk.xml:sax-handler) ())
 
-(defmethod cl-xml:start-element ((h my-handler) tag attributes)
+(defmethod io.github.cl-sdk.xml:start-element ((h my-handler) tag attributes)
   (format t "open  ~a ~a~%" tag attributes))
 
-(defmethod cl-xml:end-element ((h my-handler) tag)
+(defmethod io.github.cl-sdk.xml:end-element ((h my-handler) tag)
   (format t "close ~a~%" tag))
 
-(defmethod cl-xml:end-document ((h my-handler))
+(defmethod io.github.cl-sdk.xml:end-document ((h my-handler))
   :done)
 
-(cl-xml:parse-xml "<root><child /></root>" :handler (make-instance 'my-handler))
+(io.github.cl-sdk.xml:parse-xml "<root><child /></root>" :handler (make-instance 'my-handler))
 ;; open  root nil
 ;; open  child nil
 ;; close child
@@ -81,10 +79,10 @@ The top-level result of `parse-xml`.
 | `xml-document-root`   | the root `xml-node` |
 
 ```lisp
-(cl-xml:xml-document-prolog *doc*)
+(io.github.cl-sdk.xml:xml-document-prolog *doc*)
 ;; => (#<xml-pi "xml" …> #<xml-comment " preamble ">)
 
-(cl-xml:xml-node-tag (cl-xml:xml-document-root *doc*))
+(io.github.cl-sdk.xml:xml-node-tag (io.github.cl-sdk.xml:xml-document-root *doc*))
 ;; => "root"
 ```
 
@@ -97,11 +95,11 @@ The top-level result of `parse-xml`.
 | `xml-node-children`   | list of child nodes (see node types below) |
 
 ```lisp
-(let* ((root (cl-xml:xml-document-root *doc*))
-       (item (first (cl-xml:xml-node-children root))))
-  (cl-xml:xml-node-tag item)                      ; => "item"
-  (cl-xml:xml-node-attributes item)               ; => (("id" . "1"))
-  (cl-xml:xml-node-children item))                ; => ("hello & world")
+(let* ((root (io.github.cl-sdk.xml:xml-document-root *doc*))
+       (item (first (io.github.cl-sdk.xml:xml-node-children root))))
+  (io.github.cl-sdk.xml:xml-node-tag item)                      ; => "item"
+  (io.github.cl-sdk.xml:xml-node-attributes item)               ; => (("id" . "1"))
+  (io.github.cl-sdk.xml:xml-node-children item))                ; => ("hello & world")
 ```
 
 ### xml-comment
@@ -155,7 +153,7 @@ Whitespace-only character data between elements is discarded.
 
 ## References
 
-cl-xml is a hand-written recursive-descent parser implemented in Common Lisp.
+io.github.cl-sdk.xml is a hand-written recursive-descent parser implemented in Common Lisp.
 It targets the specifications listed below.
 
 - [Extensible Markup Language (XML) 1.0](https://www.w3.org/TR/xml/) — the core grammar and well-formedness rules that govern parsing, character data, entity references, comments, CDATA sections, processing instructions, and the document prolog.

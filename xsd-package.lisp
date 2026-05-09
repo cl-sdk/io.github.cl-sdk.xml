@@ -1,5 +1,5 @@
-(defpackage #:cl-xsd
-  (:use #:cl #:cl-xml)
+(defpackage #:io.github.cl-sdk.xsd
+  (:use #:cl #:io.github.cl-sdk.xml)
   (:export
    ;; XSD schema structures
    #:xsd-schema
